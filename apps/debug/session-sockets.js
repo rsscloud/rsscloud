@@ -25,23 +25,18 @@ function createSessionSockets({ sessionStore }) {
 
             wss.handleUpgrade(request, socket, head, ws => {
                 session.sockets.add(ws);
-                // Backfill a late-connecting viewer with this session's
-                // history, oldest-first (requestLog itself is newest-first).
-                for (const entry of session.requestLog.slice().reverse()) {
-                    ws.send(JSON.stringify(entry));
-                }
                 ws.on('close', () => session.sockets.delete(ws));
             });
         });
     }
 
+    // Purely live — nothing is stored server-side, so a socket connecting
+    // late only sees whatever happens after it connects.
     function broadcast(sessionId, entry) {
         const session = sessionStore.get(sessionId);
         if (!session) {
             return;
         }
-
-        sessionStore.appendLog(sessionId, entry);
 
         const message = JSON.stringify(entry);
         for (const ws of session.sockets) {

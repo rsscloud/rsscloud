@@ -80,7 +80,8 @@ module.exports = [
                 navigator: 'readonly',
                 location: 'readonly',
                 localStorage: 'readonly',
-                sessionStorage: 'readonly'
+                sessionStorage: 'readonly',
+                URL: 'readonly'
             }
         }
     }

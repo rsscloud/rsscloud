@@ -134,26 +134,27 @@ test('sweeping does not evict or close a session with a live socket connection',
     server.close();
 });
 
-test('connecting replays buffered history oldest-first before any new broadcast', async() => {
+test('connecting does not replay any prior history — only live broadcasts after connecting arrive', async() => {
     const sessionStore = createSessionStore();
-    const { id: sessionId, session } = sessionStore.createSession();
-    // requestLog is maintained newest-first (unshift), as today.
-    session.requestLog = [
-        { id: '2', method: 'POST' },
-        { id: '1', method: 'GET' }
-    ];
-    const { attach } = createSessionSockets({ sessionStore });
+    const { id: sessionId } = sessionStore.createSession();
+    const { attach, broadcast } = createSessionSockets({ sessionStore });
+    // A broadcast before any socket connects has nowhere to go — logs are
+    // never stored server-side, so there's nothing to replay later.
+    broadcast(sessionId, { id: 'before-connect', method: 'GET' });
+
     const server = http.createServer();
     attach(server);
     const port = await listen(server);
 
     const ws = new WebSocket(`ws://127.0.0.1:${port}/s/${sessionId}/logs`);
-    const replayed = [];
-    ws.on('message', data => replayed.push(JSON.parse(data.toString())));
+    const received = [];
+    ws.on('message', data => received.push(JSON.parse(data.toString())));
     await waitForOpen(ws);
-    await waitUntil(() => replayed.length === 2);
 
-    assert.deepEqual(replayed.map(e => e.id), ['1', '2']);
+    broadcast(sessionId, { id: 'after-connect', method: 'POST' });
+    await waitUntil(() => received.length === 1);
+
+    assert.deepEqual(received.map(e => e.id), ['after-connect']);
 
     ws.close();
     server.close();

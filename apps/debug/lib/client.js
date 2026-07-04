@@ -8,6 +8,11 @@ const { array, buildMethodCall, i4, str } = require('@rsscloud/xml-rpc');
 
 const FORM_TYPE = 'application/x-www-form-urlencoded';
 const XML_TYPE = 'text/xml';
+// The REST endpoints negotiate their response format via `req.accepts()`,
+// which resolves the 'xml' shorthand to this mime type (not the `text/xml`
+// XML-RPC Content-Type convention above) — sending `text/xml` here would
+// fail to match and get a 406.
+const XML_ACCEPT_TYPE = 'application/xml';
 
 // Build the rssCloud pleaseNotify methodCall — six positional params in wire
 // order: notifyProcedure, port, path, protocol, urlList, domain.
@@ -27,19 +32,32 @@ function buildPingCall(feedUrl) {
     return buildMethodCall('rssCloud.ping', [str(feedUrl)]);
 }
 
+// `accept` selects the Accept header for a REST call ('xml' | 'json'); the
+// outgoing body is always urlencoded regardless — only the requested reply
+// format varies. Absent, no Accept header override is sent.
+function acceptHeader(accept) {
+    if (!accept) {
+        return undefined;
+    }
+    return { Accept: accept === 'json' ? 'application/json' : XML_ACCEPT_TYPE };
+}
+
 // Build a client bound to one hub. pleaseNotify/ping pick their front door from
 // the request shape: an xml-rpc subscription and an xml-rpc ping go to /RPC2;
 // everything else uses the REST front doors. `callback.domain` is optional and
 // selects the hub's verification flow — given, the hub uses that host (with a
 // challenge for http-post/https-post); omitted, it uses the caller's address.
+// Every call accepts an explicit `url` to target instead of `serverUrl` +
+// its conventional suffix — `serverUrl` is only required when no call ever
+// passes one.
 function createRssCloudClient(options) {
     const doFetch = options.fetch ?? fetch;
-    const base = options.serverUrl.replace(/\/$/, '');
+    const base = options.serverUrl ? options.serverUrl.replace(/\/$/, '') : undefined;
 
-    async function send(path, contentType, body) {
-        const res = await doFetch(`${base}${path}`, {
+    async function send(url, contentType, body, extraHeaders) {
+        const res = await doFetch(url, {
             method: 'POST',
-            headers: { 'Content-Type': contentType },
+            headers: { 'Content-Type': contentType, ...extraHeaders },
             body
         });
         return { status: res.status, body: await res.text() };
@@ -48,7 +66,7 @@ function createRssCloudClient(options) {
     async function pleaseNotify(opts) {
         if (opts.protocol === 'xml-rpc') {
             return send(
-                '/RPC2',
+                opts.url ?? `${base}/RPC2`,
                 XML_TYPE,
                 buildPleaseNotifyCall({
                     notifyProcedure: 'rssCloud.notify',
@@ -69,17 +87,23 @@ function createRssCloudClient(options) {
         if (opts.callback.domain) {
             form.set('domain', opts.callback.domain);
         }
-        return send('/pleaseNotify', FORM_TYPE, form.toString());
+        return send(
+            opts.url ?? `${base}/pleaseNotify`,
+            FORM_TYPE,
+            form.toString(),
+            acceptHeader(opts.accept)
+        );
     }
 
     async function ping(opts) {
         if (opts.transport === 'xml-rpc') {
-            return send('/RPC2', XML_TYPE, buildPingCall(opts.feedUrl));
+            return send(opts.url ?? `${base}/RPC2`, XML_TYPE, buildPingCall(opts.feedUrl));
         }
         return send(
-            '/ping',
+            opts.url ?? `${base}/ping`,
             FORM_TYPE,
-            new URLSearchParams({ url: opts.feedUrl }).toString()
+            new URLSearchParams({ url: opts.feedUrl }).toString(),
+            acceptHeader(opts.accept)
         );
     }
 

@@ -1,24 +1,36 @@
 const { randomUUID } = require('crypto');
+const config = require('../config');
+const { computeDefaultSettings } = require('./settings');
 
-const MAX_LOG_ENTRIES = 100;
 // Absolute ceiling on how long a live socket alone can keep a session
 // exempt from idle/GC checks — long enough to cover "left a tab open over a
 // long weekend," but a hard backstop against an indefinitely-held
 // connection pinning a session in memory forever on a public deployment.
 const MAX_SESSION_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
-// Per-session in-memory state for the client harness: request log, served
-// feed items, and WebSub secrets, isolated per session id so concurrent
-// public users don't see each other's traffic.
-function createSessionStore({ now = () => Date.now(), idGenerator = randomUUID } = {}) {
+// Per-session in-memory state for the client harness: served feed items and
+// WebSub secrets, isolated per session id so concurrent public users don't
+// see each other's traffic. The traffic log itself is never stored here —
+// it's a purely live broadcast (see session-sockets.js).
+function createSessionStore({
+    now = () => Date.now(),
+    idGenerator = randomUUID,
+    buildDefaultSettings = id => computeDefaultSettings({
+        sessionId: id,
+        domain: config.domain,
+        port: config.port,
+        hubServerUrl: config.hubServerUrl
+    })
+} = {}) {
     const sessions = new Map();
 
-    function newSession() {
+    function newSession(id) {
         const createdAt = now();
         return {
-            requestLog: [],
             feedItems: {},
+            feedLastUpdatedAt: {},
             webSubSecrets: {},
+            settings: buildDefaultSettings(id),
             sockets: new Set(),
             createdAt,
             lastOutgoingAt: createdAt
@@ -27,7 +39,7 @@ function createSessionStore({ now = () => Date.now(), idGenerator = randomUUID }
 
     function createSession() {
         const id = idGenerator();
-        const session = newSession();
+        const session = newSession(id);
         sessions.set(id, session);
         return { id, session };
     }
@@ -38,7 +50,7 @@ function createSessionStore({ now = () => Date.now(), idGenerator = randomUUID }
 
     function getOrCreate(id) {
         if (!sessions.has(id)) {
-            sessions.set(id, newSession());
+            sessions.set(id, newSession(id));
         }
         return sessions.get(id);
     }
@@ -94,20 +106,6 @@ function createSessionStore({ now = () => Date.now(), idGenerator = randomUUID }
         return sessions.size;
     }
 
-    // Owns the request log's lifecycle (append + cap) so callers (the
-    // WebSocket layer, the incoming-request middleware) don't each
-    // reimplement the truncation policy.
-    function appendLog(id, entry) {
-        const session = sessions.get(id);
-        if (!session) {
-            return;
-        }
-        session.requestLog.unshift(entry);
-        if (session.requestLog.length > MAX_LOG_ENTRIES) {
-            session.requestLog.pop();
-        }
-    }
-
     return {
         createSession,
         get,
@@ -115,8 +113,7 @@ function createSessionStore({ now = () => Date.now(), idGenerator = randomUUID }
         touchOutgoing,
         isIdle,
         sweep,
-        size,
-        appendLog
+        size
     };
 }
 
