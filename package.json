@@ -5,7 +5,7 @@
     "description": "rssCloud monorepo",
     "scripts": {
         "start": "pnpm --filter @rsscloud/server run dev",
-        "client": "pnpm --filter @rsscloud/client-app run dev",
+        "debug": "pnpm --filter @rsscloud/debug run dev",
         "build": "turbo run build",
         "lint": "turbo run lint",
         "typecheck": "turbo run typecheck",

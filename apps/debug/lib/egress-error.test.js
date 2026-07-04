@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { describeActionError } = require('./egress-error');
 
-const HINT = 'CLIENT_FETCH_ALLOW_CIDRS';
+const HINT = 'DEBUG_FETCH_ALLOW_CIDRS';
 
 test('appends the allowlist hint for an SsrfBlockedError by name', () => {
     const error = Object.assign(

@@ -36,7 +36,7 @@ importers:
         specifier: ^2.9.14
         version: 2.9.14
 
-  apps/client:
+  apps/debug:
     dependencies:
       '@rsscloud/core':
         specifier: workspace:*

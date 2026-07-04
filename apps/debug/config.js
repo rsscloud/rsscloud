@@ -30,13 +30,13 @@ function getCidrListConfig(key) {
 }
 
 module.exports = {
-    appName: 'rssCloudClient',
+    appName: 'rssCloudDebug',
     appVersion: packageJson.version,
     domain: getConfig('DOMAIN', 'localhost'),
     port: getNumericConfig('PORT', 9000),
     hubServerUrl: getConfig('HUB_SERVER_URL', 'http://localhost:5337'),
     requestTimeout: getNumericConfig('REQUEST_TIMEOUT', 4000),
-    clientFetchAllowCidrs: getCidrListConfig('CLIENT_FETCH_ALLOW_CIDRS'),
+    debugFetchAllowCidrs: getCidrListConfig('DEBUG_FETCH_ALLOW_CIDRS'),
     // 1h — past this, incoming callback/feed routes 404 for the session.
     sessionCallbackIdleMs: getNumericConfig(
         'SESSION_CALLBACK_IDLE_MS',

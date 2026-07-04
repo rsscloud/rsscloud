@@ -3,7 +3,7 @@
 The notification context of the [rssCloud](http://rsscloud.org/) protocol: subscribers
 register a callback for a feed, publishers signal when a feed changes, and the server
 fans notifications out to subscribers. `@rsscloud/core` is the protocol-neutral engine
-(the **Hub** end); the transports and HTTP edge wrap it. `apps/client` is the matching
+(the **Hub** end); the transports and HTTP edge wrap it. `apps/debug` is the matching
 **Client** end (the **Subscriber** + **Publisher** side), and `@rsscloud/xml-rpc` is the
 **XML-RPC codec** both ends share.
 
@@ -80,7 +80,7 @@ _Avoid_: server (that's a deployment of the hub, not the role), broker.
 
 **Client**:
 The **Subscriber** + **Publisher** end of the protocol — the mirror of the **Hub**,
-living in `apps/client`. Its `lib/` builds the **pleaseNotify**/**Ping** calls (on the
+living in `apps/debug`. Its `lib/` builds the **pleaseNotify**/**Ping** calls (on the
 **XML-RPC codec**) and renders a feed's **Cloud element**; the app hosts the callback
 endpoint that answers the verify challenge and acknowledges **Notification**s. Not a
 published package — a real subscriber must host that endpoint, so it stays app logic.
@@ -122,7 +122,7 @@ _Avoid_: parser (that's one half), serializer, XML library.
 ### WebSub
 
 The **Hub** also speaks [WebSub](https://www.w3.org/TR/websub/), the W3C successor to
-PubSubHubbub. Hub-only: `apps/client` still owns the subscriber/publisher side, and the
+PubSubHubbub. Hub-only: `apps/debug` still owns the subscriber/publisher side, and the
 hub never hosts source feeds (publishers point at it via `<link rel="hub">` in their own
 feeds). These terms name what's WebSub-specific; they reuse the core terms above wherever
 the concept is the same.

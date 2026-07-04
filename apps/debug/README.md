@@ -1,4 +1,4 @@
-# @rsscloud/client-app
+# @rsscloud/debug
 
 An interactive **test harness** for the [rssCloud](https://github.com/rsscloud/rsscloud-server)
 notification protocol and [WebSub](https://www.w3.org/TR/websub/) — the subscriber +
@@ -6,7 +6,7 @@ publisher end, the mirror of `@rsscloud/core` (the hub end). Unlike most of this
 it's designed to be deployable as a **public utility**: it can test a hub running locally,
 a hub deployed live, or any third party's rssCloud/WebSub implementation.
 
-The Express app ([`client.js`](client.js)) serves one unified control box — pick a protocol
+The Express app ([`debug.js`](debug.js)) serves one unified control box — pick a protocol
 (rssCloud REST, rssCloud XML-RPC, or WebSub), point it at this harness's own test feed or an
 arbitrary external one, and Subscribe/Ping/Publish/Unsubscribe. Every action is asynchronous
 (no page navigation); the outcome — and everything this harness receives — shows up as a
@@ -35,33 +35,33 @@ button clicked, so its callback surface stays reachable and it's never evicted.
 From the repo root:
 
 ```bash
-pnpm client          # start in watch mode (nodemon)
+pnpm debug           # start in watch mode (nodemon)
 ```
 
 Or from this package:
 
 ```bash
-pnpm --filter @rsscloud/client-app run dev    # watch mode
-pnpm --filter @rsscloud/client-app start      # one-shot
+pnpm --filter @rsscloud/debug run dev    # watch mode
+pnpm --filter @rsscloud/debug start      # one-shot
 ```
 
 Copy `.env.example` to `.env` and adjust — the defaults target a hub at
 `http://localhost:5337` (this repo's own server, run locally) with loopback exempted from
 the outbound SSRF guard for local dev. See `.env.example` for the full list of env vars
-(`DOMAIN`, `PORT`, `HUB_SERVER_URL`, `CLIENT_FETCH_ALLOW_CIDRS`, `REQUEST_TIMEOUT`,
+(`DOMAIN`, `PORT`, `HUB_SERVER_URL`, `DEBUG_FETCH_ALLOW_CIDRS`, `REQUEST_TIMEOUT`,
 `SESSION_CALLBACK_IDLE_MS`, `SESSION_GC_IDLE_MS`, `SESSION_GC_INTERVAL_MS`). Requires Node 22+.
 
 Every outbound call this harness makes (feed discovery, pleaseNotify/ping, WebSub `hub.*`) is
 routed through the same SSRF-guarded fetch `@rsscloud/core` gives the hub server — refusing
 loopback/private/link-local targets by default, since a public deployment lets any visitor
-make it originate arbitrary requests. `CLIENT_FETCH_ALLOW_CIDRS` re-enables loopback for local
+make it originate arbitrary requests. `DEBUG_FETCH_ALLOW_CIDRS` re-enables loopback for local
 dev; delete it before deploying publicly.
 
 ## Docker
 
 ```bash
-docker build -f apps/client/Dockerfile -t rsscloud-client .
-docker run -p 9000:9000 --env-file apps/client/.env rsscloud-client
+docker build -f apps/debug/Dockerfile -t rsscloud-debug .
+docker run -p 9000:9000 --env-file apps/debug/.env rsscloud-debug
 ```
 
 See [`examples/dockge/compose.yaml`](../../examples/dockge/compose.yaml) for a stack pairing

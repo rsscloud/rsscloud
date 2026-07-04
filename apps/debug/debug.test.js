@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createApp } = require('./client');
+const { createApp } = require('./debug');
 const { createSessionStore } = require('./lib/session-store');
 const request = require('supertest');
 
@@ -257,7 +257,7 @@ test('POST /s/:id/actions/ping surfaces the allowlist hint when the egress guard
         .send({ protocol: 'rsscloud-rest', feedName: 'rss-01.xml' });
 
     assert.ok(res.body.error.includes('loopback address'));
-    assert.ok(res.body.error.includes('CLIENT_FETCH_ALLOW_CIDRS'));
+    assert.ok(res.body.error.includes('DEBUG_FETCH_ALLOW_CIDRS'));
 });
 
 test('POST /s/:id/actions/publish calls hub.mode=publish and returns JSON', async() => {
@@ -359,7 +359,7 @@ test('without an injected fetch, an outbound call to the default (loopback) hub 
     // The guard rejects loopback; the response unwraps undici's "fetch failed"
     // to the guard's own message and appends the allowlist hint.
     assert.match(res.body.error, /loopback address/);
-    assert.match(res.body.error, /CLIENT_FETCH_ALLOW_CIDRS/);
+    assert.match(res.body.error, /DEBUG_FETCH_ALLOW_CIDRS/);
 });
 
 test('subscribing logs an outgoing request entry and a paired response entry', async() => {

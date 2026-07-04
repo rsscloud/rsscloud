@@ -66,11 +66,11 @@ module.exports = [
             'no-continue': 'off'
         }
     },
-    // apps/client/public is browser-loaded (<script type="module">), not
+    // apps/debug/public is browser-loaded (<script type="module">), not
     // Node — scoped here rather than added to the shared globals above so
     // Node-side no-undef checking stays strict everywhere else.
     {
-        files: ['apps/client/public/**/*.js'],
+        files: ['apps/debug/public/**/*.js'],
         languageOptions: {
             sourceType: 'module',
             globals: {
