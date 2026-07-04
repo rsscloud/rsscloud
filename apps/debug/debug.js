@@ -238,13 +238,13 @@ function renderPage(sessionId, wsUrl, settings, { isSelfHosted, showPing, lastUp
     return `<!DOCTYPE html>
 <html>
 <head>
-    <title>rssCloud Debug Harness</title>
+    <title>rssCloud Debug</title>
     <link href="/css/style.css" rel="stylesheet" />
     <style>${debugStyles}</style>
 </head>
 <body data-session-id="${escapeHtml(sessionId)}">
     <div class="page-header">
-        <h1>rssCloud Debug Harness</h1>
+        <h1>rssCloud Debug</h1>
         <a class="settings-link" href="/s/${escapeHtml(sessionId)}/settings" aria-label="Settings" title="Settings">${gearIconSvg}</a>
     </div>
 
@@ -291,12 +291,12 @@ function renderSettingsPage(sessionId, settings, { error } = {}) {
     return `<!DOCTYPE html>
 <html>
 <head>
-    <title>rssCloud Debug Harness — Settings</title>
+    <title>rssCloud Debug: Settings</title>
     <link href="/css/style.css" rel="stylesheet" />
     <style>${debugStyles}</style>
 </head>
 <body>
-    <h1>rssCloud Debug Harness — Settings</h1>
+    <h1>rssCloud Debug: Settings</h1>
 
     <form method="POST" action="/s/${escapeHtml(sessionId)}/settings" data-context='${escapeHtml(JSON.stringify(context))}'>
         <label for="feedUrl">Feed URL</label>
