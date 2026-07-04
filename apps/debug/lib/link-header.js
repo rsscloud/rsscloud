@@ -22,8 +22,9 @@ function parseLinkHeader(value) {
         .filter(Boolean);
 }
 
+// RFC 8288 §3.3: relation types SHOULD be treated case-insensitively.
 function findLinkByRel(links, rel) {
-    return links.find(link => link.rel === rel)?.url;
+    return links.find(link => link.rel?.toLowerCase() === rel.toLowerCase())?.url;
 }
 
 module.exports = { parseLinkHeader, findLinkByRel };

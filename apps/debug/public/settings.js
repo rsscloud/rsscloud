@@ -141,11 +141,17 @@ function writeFormSettings(settings) {
     updateWebSubVisibility();
 }
 
+// Guards against a stale response landing after a newer blur's — e.g. if
+// the user edits and blurs again before the first request comes back,
+// only the result matching the latest request may write the form.
+let latestDiscoveryRequestId = 0;
+
 feedUrlInput.addEventListener('blur', async() => {
     const feedUrl = feedUrlInput.value.trim();
     if (!feedUrl || isSelfHosted(feedUrl)) {
         return;
     }
+    const requestId = ++latestDiscoveryRequestId;
     showActionError(null);
     try {
         const res = await fetch(`/s/${sessionId}/actions/discover-settings`, {
@@ -154,12 +160,18 @@ feedUrlInput.addEventListener('blur', async() => {
             body: JSON.stringify({ feedUrl, currentSettings: readFormSettings() })
         });
         const result = await res.json();
+        if (requestId !== latestDiscoveryRequestId) {
+            return;
+        }
         if (result.error) {
             showActionError(`discover failed: ${result.error}`);
             return;
         }
         writeFormSettings(result.settings);
     } catch (error) {
+        if (requestId !== latestDiscoveryRequestId) {
+            return;
+        }
         showActionError(`discover failed: ${error.message}`);
     }
 });

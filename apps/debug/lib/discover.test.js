@@ -150,6 +150,24 @@ test('detects a hub link under whichever prefix a feed actually bound to the Ato
     assert.deepEqual(result.webSub, { hubUrl: 'http://hub.example/websub' });
 });
 
+const MIXED_CASE_REL_FEED = `<?xml version="1.0"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+    <channel>
+        <title>Mixed-case rel Feed</title>
+        <link>http://sub.example:9000/rss-01.xml</link>
+        <description>Uses rel="Hub" (mixed case)</description>
+        <atom:link rel="Hub" href="http://hub.example/websub" />
+        <item><title>Entry one</title><guid>g0</guid></item>
+    </channel>
+</rss>`;
+
+// RFC 8288 §3.3: relation types SHOULD be treated case-insensitively.
+test('detects a body-embedded hub link with a mixed-case rel value', async() => {
+    const result = await parseFeedDiscovery(MIXED_CASE_REL_FEED);
+
+    assert.deepEqual(result.webSub, { hubUrl: 'http://hub.example/websub' });
+});
+
 const UNDECLARED_ATOM_PREFIX_FEED = `<?xml version="1.0"?>
 <rss version="2.0">
     <channel>

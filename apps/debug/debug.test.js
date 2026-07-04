@@ -830,6 +830,14 @@ test('GET /s/:id/settings renders a form prefilled with the session\'s current s
     assert.match(res.text, /value=['"]http:\/\/other-hub\.example\/pleaseNotify['"]/);
 });
 
+test('GET /s/:id/settings renders the WebSub secret field as a masked password input', async() => {
+    const app = createApp();
+
+    const res = await request(app).get('/s/mask-secret-session/settings');
+
+    assert.match(res.text, /<input(?=[^>]*id=['"]webSubSecret['"])(?=[^>]*type=['"]password['"])[^>]*>/);
+});
+
 test('GET /s/:id/settings renders an rssCloudDisabled checkbox reflecting the session\'s current settings', async() => {
     const sessionStore = createSessionStore();
     const app = createApp({ sessionStore });
@@ -1001,4 +1009,110 @@ test('POST /s/:id/settings sets rssCloud.disabled when the checkbox is present',
         });
 
     assert.equal(sessionStore.get(sessionId).settings.rssCloud.disabled, true);
+});
+
+test('POST /s/:id/settings rejects (without saving) a blank subscribeUrl when rssCloud is enabled over http-post', async() => {
+    const sessionStore = createSessionStore();
+    const app = createApp({ sessionStore });
+    const sessionId = 'rsscloud-blank-subscribe-url-session';
+    await request(app).get(`/s/${sessionId}`);
+    const before = sessionStore.get(sessionId).settings;
+
+    const res = await request(app)
+        .post(`/s/${sessionId}/settings`)
+        .type('form')
+        .send({
+            feedUrl: `http://localhost:9000/s/${sessionId}/rss.xml`,
+            rssCloudProtocol: 'http-post',
+            rssCloudAccepts: 'xml',
+            rssCloudPingUrl: '',
+            rssCloudSubscribeUrl: '',
+            rssCloudRpcUrl: 'http://localhost:5337/RPC2',
+            webSubHubUrl: 'http://localhost:5337/websub',
+            webSubLeaseSeconds: '',
+            webSubSecret: ''
+        });
+
+    assert.equal(res.status, 400);
+    // The rejected save must not overwrite the session's (still-valid) settings.
+    assert.deepEqual(sessionStore.get(sessionId).settings, before);
+
+    // ...and the feed route that would otherwise throw on a malformed URL
+    // keeps working, since the bad save never took effect.
+    const feedRes = await request(app).get(`/s/${sessionId}/rss.xml`);
+    assert.equal(feedRes.status, 200);
+});
+
+test('POST /s/:id/settings rejects a malformed rpcUrl when rssCloud is enabled over xml-rpc', async() => {
+    const sessionStore = createSessionStore();
+    const app = createApp({ sessionStore });
+    const sessionId = 'rsscloud-malformed-rpc-url-session';
+    await request(app).get(`/s/${sessionId}`);
+
+    const res = await request(app)
+        .post(`/s/${sessionId}/settings`)
+        .type('form')
+        .send({
+            feedUrl: `http://localhost:9000/s/${sessionId}/rss.xml`,
+            rssCloudProtocol: 'xml-rpc',
+            rssCloudAccepts: 'xml',
+            rssCloudPingUrl: '',
+            rssCloudSubscribeUrl: 'http://localhost:5337/pleaseNotify',
+            rssCloudRpcUrl: 'not-a-url',
+            webSubHubUrl: 'http://localhost:5337/websub',
+            webSubLeaseSeconds: '',
+            webSubSecret: ''
+        });
+
+    assert.equal(res.status, 400);
+});
+
+test('POST /s/:id/settings does not require a valid subscribeUrl when rssCloud is xml-rpc (only rpcUrl is used)', async() => {
+    const sessionStore = createSessionStore();
+    const app = createApp({ sessionStore });
+    const sessionId = 'rsscloud-xmlrpc-ignores-subscribe-url-session';
+    await request(app).get(`/s/${sessionId}`);
+
+    const res = await request(app)
+        .post(`/s/${sessionId}/settings`)
+        .type('form')
+        .send({
+            feedUrl: `http://localhost:9000/s/${sessionId}/rss.xml`,
+            rssCloudProtocol: 'xml-rpc',
+            rssCloudAccepts: 'xml',
+            rssCloudPingUrl: '',
+            rssCloudSubscribeUrl: '',
+            rssCloudRpcUrl: 'http://localhost:5337/RPC2',
+            webSubHubUrl: 'http://localhost:5337/websub',
+            webSubLeaseSeconds: '',
+            webSubSecret: ''
+        });
+
+    assert.equal(res.status, 302);
+    assert.equal(sessionStore.get(sessionId).settings.rssCloud.rpcUrl, 'http://localhost:5337/RPC2');
+});
+
+test('POST /s/:id/settings does not require a valid rssCloud URL when rssCloud is disabled', async() => {
+    const sessionStore = createSessionStore();
+    const app = createApp({ sessionStore });
+    const sessionId = 'rsscloud-disabled-skips-validation-session';
+    await request(app).get(`/s/${sessionId}`);
+
+    const res = await request(app)
+        .post(`/s/${sessionId}/settings`)
+        .type('form')
+        .send({
+            feedUrl: `http://localhost:9000/s/${sessionId}/rss.xml`,
+            rssCloudDisabled: 'on',
+            rssCloudProtocol: 'http-post',
+            rssCloudAccepts: 'xml',
+            rssCloudPingUrl: '',
+            rssCloudSubscribeUrl: '',
+            rssCloudRpcUrl: '',
+            webSubHubUrl: 'http://localhost:5337/websub',
+            webSubLeaseSeconds: '',
+            webSubSecret: ''
+        });
+
+    assert.equal(res.status, 302);
 });

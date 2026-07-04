@@ -41,6 +41,13 @@ test('findLinkByRel returns undefined when no link matches the requested rel', (
     assert.equal(findLinkByRel(links, 'self'), undefined);
 });
 
+// RFC 8288 §3.3: relation types SHOULD be treated case-insensitively.
+test('findLinkByRel matches rel case-insensitively (e.g. rel="Hub")', () => {
+    const links = parseLinkHeader('<https://hub.example/websub>; rel="Hub"');
+
+    assert.equal(findLinkByRel(links, 'hub'), 'https://hub.example/websub');
+});
+
 test('parseLinkHeader returns an empty array for an empty or missing header', () => {
     assert.deepEqual(parseLinkHeader(undefined), []);
     assert.deepEqual(parseLinkHeader(''), []);
