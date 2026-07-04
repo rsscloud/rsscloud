@@ -38,6 +38,81 @@ test('detects the <cloud> element rendered by renderCloudFeed', async() => {
     assert.equal(result.webSub, null);
 });
 
+// Per https://source.scripting.com/ : <source:cloud> has no attributes —
+// its value is a plain URL, the one bit of extra information being the
+// scheme (http vs https). It can't represent xml-rpc (the whole point is to
+// replace SOAP/XML-RPC with a plain URL), so it always resolves to
+// http-post/https-post.
+const SOURCE_CLOUD_FEED = `<?xml version="1.0"?>
+<rss version="2.0" xmlns:source="https://source.scripting.com/">
+    <channel>
+        <title>Source Cloud Feed</title>
+        <link>http://sub.example:9000/rss-01.xml</link>
+        <description>Advertises source:cloud only</description>
+        <source:cloud>http://hub.example:5337/pleaseNotify</source:cloud>
+        <item><title>Entry one</title><guid>g0</guid></item>
+    </channel>
+</rss>`;
+
+test('detects a <source:cloud> element per the source.scripting.com namespace', async() => {
+    const result = await parseFeedDiscovery(SOURCE_CLOUD_FEED);
+
+    assert.deepEqual(result.rssCloud, {
+        domain: 'hub.example',
+        port: 5337,
+        path: '/pleaseNotify',
+        registerProcedure: '',
+        protocol: 'http-post'
+    });
+});
+
+const SOURCE_CLOUD_HTTPS_DEFAULT_PORT_FEED = `<?xml version="1.0"?>
+<rss version="2.0" xmlns:source="https://source.scripting.com/">
+    <channel>
+        <title>Source Cloud Feed (https, default port)</title>
+        <link>http://sub.example:9000/rss-01.xml</link>
+        <description>No explicit port in the URL — https implies 443</description>
+        <source:cloud>https://hub.example/pleaseNotify</source:cloud>
+        <item><title>Entry one</title><guid>g0</guid></item>
+    </channel>
+</rss>`;
+
+test('infers https-post and the default 443 port from a bare https:// source:cloud URL', async() => {
+    const result = await parseFeedDiscovery(SOURCE_CLOUD_HTTPS_DEFAULT_PORT_FEED);
+
+    assert.deepEqual(result.rssCloud, {
+        domain: 'hub.example',
+        port: 443,
+        path: '/pleaseNotify',
+        registerProcedure: '',
+        protocol: 'https-post'
+    });
+});
+
+const BOTH_CLOUD_KINDS_FEED = `<?xml version="1.0"?>
+<rss version="2.0" xmlns:src="https://source.scripting.com/">
+    <channel>
+        <title>Both Cloud Kinds</title>
+        <link>http://sub.example:9000/rss-01.xml</link>
+        <description>Advertises both cloud and source:cloud</description>
+        <cloud domain="old-hub.example" port="80" path="/pleaseNotify" registerProcedure="" protocol="http-post" />
+        <src:cloud>http://new-hub.example:5337/pleaseNotify</src:cloud>
+        <item><title>Entry one</title><guid>g0</guid></item>
+    </channel>
+</rss>`;
+
+test('prefers source:cloud (under any bound prefix) over a traditional <cloud> when both are present', async() => {
+    const result = await parseFeedDiscovery(BOTH_CLOUD_KINDS_FEED);
+
+    assert.deepEqual(result.rssCloud, {
+        domain: 'new-hub.example',
+        port: 5337,
+        path: '/pleaseNotify',
+        registerProcedure: '',
+        protocol: 'http-post'
+    });
+});
+
 test('detects both <cloud> and an atom:link rel=hub when a feed advertises both', async() => {
     const xml = sampleFeed({ hub: 'http://localhost:5337/websub' });
 
@@ -58,6 +133,40 @@ const ATOM_FEED = `<?xml version="1.0"?>
     </entry>
 </feed>`;
 
+const NONSTANDARD_ATOM_PREFIX_FEED = `<?xml version="1.0"?>
+<rss version="2.0" xmlns:a="http://www.w3.org/2005/Atom">
+    <channel>
+        <title>Nonstandard Atom Prefix Feed</title>
+        <link>http://sub.example:9000/rss-01.xml</link>
+        <description>Hub link under a non-"atom" prefix bound to the Atom namespace</description>
+        <a:link rel="hub" href="http://hub.example/websub" />
+        <item><title>Entry one</title><guid>g0</guid></item>
+    </channel>
+</rss>`;
+
+test('detects a hub link under whichever prefix a feed actually bound to the Atom namespace', async() => {
+    const result = await parseFeedDiscovery(NONSTANDARD_ATOM_PREFIX_FEED);
+
+    assert.deepEqual(result.webSub, { hubUrl: 'http://hub.example/websub' });
+});
+
+const UNDECLARED_ATOM_PREFIX_FEED = `<?xml version="1.0"?>
+<rss version="2.0">
+    <channel>
+        <title>Undeclared Atom Prefix Feed</title>
+        <link>http://sub.example:9000/rss-01.xml</link>
+        <description>Uses atom:link by convention with no xmlns:atom declaration</description>
+        <atom:link rel="hub" href="http://hub.example/websub" />
+        <item><title>Entry one</title><guid>g0</guid></item>
+    </channel>
+</rss>`;
+
+test('falls back to the conventional atom: prefix when the namespace is not explicitly bound', async() => {
+    const result = await parseFeedDiscovery(UNDECLARED_ATOM_PREFIX_FEED);
+
+    assert.deepEqual(result.webSub, { hubUrl: 'http://hub.example/websub' });
+});
+
 test('detects a WebSub hub link in an Atom feed with no <cloud> element', async() => {
     const result = await parseFeedDiscovery(ATOM_FEED);
 
@@ -74,6 +183,30 @@ const PLAIN_RSS_FEED = `<?xml version="1.0"?>
         <item><title>Entry one</title><guid>g0</guid></item>
     </channel>
 </rss>`;
+
+test('prefers a Link header hub over a body-embedded hub link when both are present', async() => {
+    const xml = sampleFeed({ hub: 'http://body-hub.example/websub' });
+
+    const result = await parseFeedDiscovery(xml, {
+        linkHeader: '<http://header-hub.example/websub>; rel="hub"'
+    });
+
+    assert.deepEqual(result.webSub, { hubUrl: 'http://header-hub.example/websub' });
+});
+
+test('detects a rel=self link embedded in the feed body', async() => {
+    const result = await parseFeedDiscovery(ATOM_FEED);
+
+    assert.equal(result.selfUrl, 'http://sub.example:9000/atom.xml');
+});
+
+test('prefers a Link header self over a body-embedded self link when both are present', async() => {
+    const result = await parseFeedDiscovery(ATOM_FEED, {
+        linkHeader: '<http://header-self.example/atom.xml>; rel="self"'
+    });
+
+    assert.equal(result.selfUrl, 'http://header-self.example/atom.xml');
+});
 
 test('reports null for both when a feed advertises neither protocol', async() => {
     const result = await parseFeedDiscovery(PLAIN_RSS_FEED);
@@ -99,6 +232,29 @@ test('discoverFeed propagates a fetch rejection (e.g. an SSRF block) to the call
         () => discoverFeed({ url: 'http://blocked.example/rss', fetch }),
         /blocked/
     );
+});
+
+test('discoverFeed picks up a hub link from the response\'s Link header', async() => {
+    const fetch = async() => ({
+        status: 200,
+        headers: { get: name => (name === 'link' ? '<http://header-hub.example/websub>; rel="hub"' : null) },
+        text: async() => PLAIN_RSS_FEED
+    });
+
+    const result = await discoverFeed({ url: 'http://sub.example/plain.xml', fetch });
+
+    assert.deepEqual(result.webSub, { hubUrl: 'http://header-hub.example/websub' });
+});
+
+test('discoverFeed tolerates a fetch fixture with no headers.get (no Link header available)', async() => {
+    const fetch = async() => ({
+        status: 200,
+        text: async() => PLAIN_RSS_FEED
+    });
+
+    const result = await discoverFeed({ url: 'http://sub.example/plain.xml', fetch });
+
+    assert.equal(result.webSub, null);
 });
 
 test('discoverFeed short-circuits on a non-2xx response without parsing the body', async() => {

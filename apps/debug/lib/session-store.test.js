@@ -9,12 +9,36 @@ test('createSession mints a fresh session with the expected shape', () => {
 
     assert.equal(typeof id, 'string');
     assert.ok(id.length > 0);
-    assert.deepEqual(session.requestLog, []);
     assert.deepEqual(session.feedItems, {});
+    assert.deepEqual(session.feedLastUpdatedAt, {});
     assert.deepEqual(session.webSubSecrets, {});
     assert.equal(session.sockets.size, 0);
     assert.equal(session.createdAt, 1000);
     assert.equal(session.lastOutgoingAt, 1000);
+});
+
+test('createSession computes settings via the injected buildDefaultSettings, given the new session id', () => {
+    const seen = [];
+    const store = createSessionStore({
+        now: () => 1000,
+        buildDefaultSettings: id => {
+            seen.push(id);
+            return { feedUrl: `fake://${id}` };
+        }
+    });
+
+    const { id, session } = store.createSession();
+
+    assert.deepEqual(seen, [id]);
+    assert.deepEqual(session.settings, { feedUrl: `fake://${id}` });
+});
+
+test('createSession defaults settings from the real config when buildDefaultSettings is not injected', () => {
+    const store = createSessionStore({ now: () => 1000 });
+
+    const { id, session } = store.createSession();
+
+    assert.equal(session.settings.feedUrl, `http://localhost:9000/s/${id}/rss.xml`);
 });
 
 test('get returns the session created under an id, or undefined for an unknown id', () => {
@@ -149,35 +173,6 @@ test('sweep evicts a long-lived socket-holding session once it exceeds the absol
     assert.equal(evicted, 1);
     assert.equal(store.get(id), undefined);
     assert.equal(terminated, true);
-});
-
-test('appendLog unshifts an entry into the session\'s requestLog, newest-first', () => {
-    const store = createSessionStore({ now: () => 1000 });
-    const { id, session } = store.createSession();
-
-    store.appendLog(id, { id: '1' });
-    store.appendLog(id, { id: '2' });
-
-    assert.deepEqual(session.requestLog, [{ id: '2' }, { id: '1' }]);
-});
-
-test('appendLog is a safe no-op for an unknown id', () => {
-    const store = createSessionStore({ now: () => 1000 });
-
-    assert.doesNotThrow(() => store.appendLog('unknown-id', { id: '1' }));
-});
-
-test('appendLog caps the requestLog at 100 entries, dropping the oldest', () => {
-    const store = createSessionStore({ now: () => 1000 });
-    const { id, session } = store.createSession();
-
-    for (let i = 0; i < 101; i++) {
-        store.appendLog(id, { id: String(i) });
-    }
-
-    assert.equal(session.requestLog.length, 100);
-    assert.equal(session.requestLog[0].id, '100');
-    assert.equal(session.requestLog[99].id, '1');
 });
 
 test('size reflects the number of live sessions, including after a sweep', () => {

@@ -9,11 +9,11 @@ const assert = require('node:assert/strict');
 const { createApp } = require('./debug');
 const request = require('supertest');
 
-test('the served test feed\'s <cloud> element derives domain/port from HUB_SERVER_URL', async() => {
+test('the served test feed\'s <cloud> element derives domain/port from the session\'s default rssCloud settings (HUB_SERVER_URL)', async() => {
     const app = createApp();
 
     await request(app).get('/s/cloud-config-session');
-    const res = await request(app).get('/s/cloud-config-session/rss-01.xml');
+    const res = await request(app).get('/s/cloud-config-session/rss.xml');
 
     assert.match(res.text, /<cloud domain="hub\.example\.org" port="8080"/);
 });

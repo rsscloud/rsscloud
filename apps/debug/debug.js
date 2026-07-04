@@ -16,6 +16,13 @@ const bodyParser = require('body-parser'),
         renderCloudFeed,
         discoverFeed
     } = require('./lib'),
+    {
+        applyDiscoveryToSettings,
+        isSelfHostedFeedUrl,
+        feedNameFromSelfHostedUrl,
+        selfHostedPrefixes,
+        computeDefaultSettings
+    } = require('./lib/settings'),
     textParser = bodyParser.text({ type: '*/xml' }),
     // Content distribution arrives with the origin feed's Content-Type relayed
     // verbatim, so the callback parses any media type as a raw string to log it.
@@ -23,24 +30,28 @@ const bodyParser = require('body-parser'),
     urlencodedParser = bodyParser.urlencoded({ extended: false }),
     jsonParser = bodyParser.json();
 
-// The hub's WebSub front door, advertised in feeds via <atom:link rel="hub">.
-const hubUrl = `${config.hubServerUrl}/websub`;
-// The hub's origin, decomposed for the <cloud> element's domain/port — its
-// XML-RPC front door is always /RPC2, the rssCloud convention.
-const hubOrigin = new URL(config.hubServerUrl);
-const hubPort =
-    Number(hubOrigin.port) || (hubOrigin.protocol === 'https:' ? 443 : 80);
+// Derive a self-served test feed's <cloud> element from a session's own
+// rssCloud settings — undefined (omitted entirely) when rssCloud is
+// disabled. The RPC2 endpoint doubles as both ping and subscribe front door.
+function cloudFromSettings(rssCloud) {
+    if (rssCloud.disabled) {
+        return undefined;
+    }
+    const useXmlRpc = rssCloud.protocol === 'xml-rpc';
+    const target = new URL(useXmlRpc ? rssCloud.rpcUrl : rssCloud.subscribeUrl);
+    return {
+        domain: target.hostname,
+        port: Number(target.port) || (target.protocol === 'https:' ? 443 : 80),
+        path: target.pathname,
+        registerProcedure: useXmlRpc ? 'rssCloud.pleaseNotify' : '',
+        protocol: rssCloud.protocol
+    };
+}
 
 // This session's callback URL the hub notifies for WebSub content
 // distribution and intent verification.
 function webSubCallbackUrl(sessionId) {
     return `http://${config.domain}:${config.port}/s/${sessionId}/websub-callback`;
-}
-
-// Build the feed URL an action targets: the caller's own external feedUrl
-// when given (subscriber mode), else this session's own test feed.
-function resolveFeedUrl(sessionId, { feedUrl, feedName }) {
-    return feedUrl || `http://${config.domain}:${config.port}/s/${sessionId}/${feedName || 'rss-01.xml'}`;
 }
 
 // Pull the topic URL out of a delivery's Link header (`<url>; rel="self"`).
@@ -80,17 +91,9 @@ function escapeHtml(text) {
         .replace(/'/g, '&#039;');
 }
 
-// Render the unified control box + live traffic log for a session.
-// `hubServerUrl`/`hubUrl` prefill the server/hub override field with this
-// harness's own defaults; the Discover action overwrites it client-side.
-function renderPage(sessionId, wsUrl) {
-    return `<!DOCTYPE html>
-<html>
-<head>
-    <title>rssCloud Debug Harness</title>
-    <link href="/css/style.css" rel="stylesheet" />
-    <style>
-        /* Debug-harness-specific additions layered on the shared server stylesheet. */
+// Debug-harness-specific additions layered on the shared server stylesheet,
+// shared between the main page and the settings page.
+const debugStyles = `
         select {
             width: 100%;
             padding: 10px;
@@ -143,65 +146,96 @@ function renderPage(sessionId, wsUrl) {
             gap: 10px;
             flex-wrap: wrap;
         }
-    </style>
+        /* The settings form's own Save/Cancel bar (a direct child of <form>,
+           unlike the per-fieldset action rows nested inside it) needs space
+           from the last fieldset above it, and vertical centering so the
+           plain-text Cancel link lines up with the Save button. */
+        form > .actions {
+            margin-top: 20px;
+            align-items: center;
+        }
+        .page-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .page-header h1 {
+            margin-bottom: 0;
+            border-bottom: none;
+        }
+        .settings-link {
+            color: #2c3e50;
+            line-height: 0;
+        }
+        /* style.css sets an explicit display on label/div, which otherwise
+           overrides the [hidden] attribute's implicit display:none. */
+        .rsscloud-rest-only[hidden],
+        .rsscloud-xmlrpc-only[hidden],
+        .websub-fields-body[hidden] {
+            display: none;
+        }
+`;
+
+// A generic gear/cog icon — the settings page's entry point, right-justified
+// from the heading.
+const gearIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28" height="28" fill="currentColor" aria-hidden="true">
+    <path d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58a.5.5 0 00.12-.64l-1.92-3.32a.5.5 0 00-.6-.22l-2.39.96a7.03 7.03 0 00-1.62-.94l-.36-2.54a.5.5 0 00-.5-.42h-3.84a.5.5 0 00-.5.42l-.36 2.54c-.59.24-1.13.56-1.62.94l-2.39-.96a.5.5 0 00-.6.22L2.66 8.84a.5.5 0 00.12.64l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94L2.76 14.5a.5.5 0 00-.12.64l1.92 3.32c.14.24.42.34.68.22l2.39-.96c.5.38 1.04.7 1.62.94l.36 2.54c.05.28.27.42.5.42h3.84c.28 0 .46-.14.5-.42l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.28.12.54 0 .68-.22l1.92-3.32a.5.5 0 00-.12-.64l-2.02-1.58zM12 15.5A3.5 3.5 0 1112 8.5a3.5 3.5 0 010 7z"/>
+</svg>`;
+
+// Render the simplified control box (Feed / rssCloud / WebSub rows, each
+// driven entirely by the session's saved settings) + live traffic log.
+// Row/button visibility is computed server-side by the caller (see
+// `GET /` below) and baked into the markup, not toggled client-side.
+function renderPage(sessionId, wsUrl, settings, { isSelfHosted, showPing, lastUpdatedAt }) {
+    const feedRow = isSelfHosted
+        ? `<p class="feed-url">Feed URL: <code>${escapeHtml(settings.feedUrl)}</code></p>
+            <div class="actions">
+                <button type="button" id="updateFeedButton">Update Feed</button>
+            </div>
+            <p class="feed-url">Last updated: <span id="feedLastUpdated">${escapeHtml(lastUpdatedAt.toISOString())}</span></p>`
+        : `<p class="feed-url">External feed: <code>${escapeHtml(settings.feedUrl)}</code></p>`;
+
+    const rssCloudRow = settings.rssCloud.disabled
+        ? ''
+        : `<fieldset>
+            <legend>rssCloud</legend>
+            <div class="actions">
+                <button type="button" id="rsscloudSubscribeButton">Subscribe</button>
+                ${showPing ? '<button type="button" id="rsscloudPingButton">Ping</button>' : ''}
+            </div>
+        </fieldset>`;
+
+    const webSubRow = settings.webSub.disabled
+        ? ''
+        : `<fieldset>
+            <legend>WebSub</legend>
+            <div class="actions">
+                <button type="button" id="websubSubscribeButton">Subscribe</button>
+                <button type="button" id="websubUnsubscribeButton">Unsubscribe</button>
+                <button type="button" id="websubPublishButton">Publish</button>
+            </div>
+        </fieldset>`;
+
+    return `<!DOCTYPE html>
+<html>
+<head>
+    <title>rssCloud Debug Harness</title>
+    <link href="/css/style.css" rel="stylesheet" />
+    <style>${debugStyles}</style>
 </head>
 <body data-session-id="${escapeHtml(sessionId)}">
-    <h1>rssCloud Debug Harness</h1>
+    <div class="page-header">
+        <h1>rssCloud Debug Harness</h1>
+        <a class="settings-link" href="/s/${escapeHtml(sessionId)}/settings" aria-label="Settings" title="Settings">${gearIconSvg}</a>
+    </div>
 
     <div class="controls">
         <fieldset>
-            <legend>Target</legend>
-            <div class="form-row">
-                <label for="protocol">
-                    Protocol
-                    <select id="protocol">
-                        <option value="rsscloud-rest">rssCloud REST</option>
-                        <option value="rsscloud-xml-rpc">rssCloud XML-RPC</option>
-                        <option value="websub">WebSub</option>
-                    </select>
-                </label>
-                <label for="serverOverride">
-                    Server/hub override
-                    <input type="text" id="serverOverride" placeholder="${escapeHtml(config.hubServerUrl)}">
-                </label>
-            </div>
-        </fieldset>
-
-        <fieldset>
             <legend>Feed</legend>
-            <label for="feedUrl">
-                Feed URL (external — leave blank to use this harness's own test feed)
-            </label>
-            <div class="input-with-button">
-                <input type="text" id="feedUrl" placeholder="https://example.com/feed.xml">
-                <button type="button" id="discoverButton">Discover</button>
-            </div>
-            <label for="feedName">
-                Feed name (own test feed)
-                <input type="text" id="feedName" value="rss-01.xml">
-            </label>
+            ${feedRow}
         </fieldset>
-
-        <fieldset class="websub-only">
-            <legend>WebSub options</legend>
-            <div class="form-row">
-                <label for="leaseSeconds">
-                    lease_seconds
-                    <input type="text" id="leaseSeconds" placeholder="optional">
-                </label>
-                <label for="secret">
-                    secret
-                    <input type="text" id="secret" placeholder="optional">
-                </label>
-            </div>
-        </fieldset>
-
-        <div class="actions">
-            <button type="button" id="subscribeButton">Subscribe</button>
-            <button type="button" id="unsubscribeButton" class="websub-only">Unsubscribe</button>
-            <button type="button" id="pingButton" class="rsscloud-only">Ping</button>
-            <button type="button" id="publishButton" class="websub-only">Publish</button>
-        </div>
+        ${rssCloudRow}
+        ${webSubRow}
     </div>
 
     <div id="actionError" class="action-error" role="alert" hidden></div>
@@ -220,6 +254,111 @@ function renderPage(sessionId, wsUrl) {
     </div>
 
     <script type="module" src="/app.js"></script>
+</body>
+</html>`;
+}
+
+// Render the settings page — starts from the session's current settings
+// (computed defaults on first visit, whatever was last saved after that).
+// Protocol-dependent field visibility is toggled client-side (public/settings.js)
+// since it must react live to the form's own dropdown/checkbox changes.
+function renderSettingsPage(sessionId, settings) {
+    const ctx = { domain: config.domain, port: config.port, sessionId };
+    const context = {
+        selfHostedPrefixes: selfHostedPrefixes(ctx),
+        defaultSettings: computeDefaultSettings({ ...ctx, hubServerUrl: config.hubServerUrl })
+    };
+
+    return `<!DOCTYPE html>
+<html>
+<head>
+    <title>rssCloud Debug Harness — Settings</title>
+    <link href="/css/style.css" rel="stylesheet" />
+    <style>${debugStyles}</style>
+</head>
+<body>
+    <h1>rssCloud Debug Harness — Settings</h1>
+
+    <form method="POST" action="/s/${escapeHtml(sessionId)}/settings" data-context='${escapeHtml(JSON.stringify(context))}'>
+        <label for="feedUrl">Feed URL</label>
+        <div class="input-with-button">
+            <input type="text" id="feedUrl" name="feedUrl" value="${escapeHtml(settings.feedUrl)}">
+            <button type="button" id="feedUrlResetButton"${isSelfHostedFeedUrl(settings.feedUrl, ctx) ? ' disabled' : ''}>Reset</button>
+        </div>
+
+        <fieldset id="rsscloudFields">
+            <legend>rssCloud</legend>
+            <label>
+                <input type="checkbox" id="rssCloudDisabled" name="rssCloudDisabled" ${settings.rssCloud.disabled ? 'checked' : ''}>
+                Disabled
+            </label>
+            <div class="rsscloud-fields-body">
+                <div class="form-row">
+                    <label for="rssCloudProtocol">
+                        Protocol
+                        <select id="rssCloudProtocol" name="rssCloudProtocol">
+                            <option value="http-post" ${settings.rssCloud.protocol === 'http-post' ? 'selected' : ''}>http-post</option>
+                            <option value="https-post" ${settings.rssCloud.protocol === 'https-post' ? 'selected' : ''}>https-post</option>
+                            <option value="xml-rpc" ${settings.rssCloud.protocol === 'xml-rpc' ? 'selected' : ''}>xml-rpc</option>
+                        </select>
+                    </label>
+                    <label for="rssCloudAccepts" class="rsscloud-rest-only">
+                        Accepts
+                        <select id="rssCloudAccepts" name="rssCloudAccepts">
+                            <option value="xml" ${settings.rssCloud.accepts === 'xml' ? 'selected' : ''}>xml</option>
+                            <option value="json" ${settings.rssCloud.accepts === 'json' ? 'selected' : ''}>json</option>
+                        </select>
+                    </label>
+                </div>
+                <div class="form-row rsscloud-rest-only">
+                    <label for="rssCloudPingUrl">
+                        Ping URL
+                        <input type="text" id="rssCloudPingUrl" name="rssCloudPingUrl" value="${escapeHtml(settings.rssCloud.pingUrl)}">
+                    </label>
+                    <label for="rssCloudSubscribeUrl">
+                        Subscribe URL
+                        <input type="text" id="rssCloudSubscribeUrl" name="rssCloudSubscribeUrl" value="${escapeHtml(settings.rssCloud.subscribeUrl)}">
+                    </label>
+                </div>
+                <label for="rssCloudRpcUrl" class="rsscloud-xmlrpc-only">
+                    RPC2 endpoint
+                    <input type="text" id="rssCloudRpcUrl" name="rssCloudRpcUrl" value="${escapeHtml(settings.rssCloud.rpcUrl)}">
+                </label>
+            </div>
+        </fieldset>
+
+        <fieldset id="webSubFields">
+            <legend>WebSub</legend>
+            <label>
+                <input type="checkbox" id="webSubDisabled" name="webSubDisabled" ${settings.webSub.disabled ? 'checked' : ''}>
+                Disabled
+            </label>
+            <div class="websub-fields-body">
+                <label for="webSubHubUrl">
+                    Hub URL
+                    <input type="text" id="webSubHubUrl" name="webSubHubUrl" value="${escapeHtml(settings.webSub.hubUrl)}">
+                </label>
+                <div class="form-row">
+                    <label for="webSubLeaseSeconds">
+                        lease_seconds
+                        <input type="text" id="webSubLeaseSeconds" name="webSubLeaseSeconds" value="${escapeHtml(String(settings.webSub.leaseSeconds ?? ''))}" placeholder="optional">
+                    </label>
+                    <label for="webSubSecret">
+                        secret
+                        <input type="text" id="webSubSecret" name="webSubSecret" value="${escapeHtml(settings.webSub.secret ?? '')}" placeholder="optional">
+                    </label>
+                </div>
+            </div>
+        </fieldset>
+
+        <div id="actionError" class="action-error" role="alert" hidden></div>
+        <div class="actions">
+            <button type="submit">Save</button>
+            <a href="/s/${escapeHtml(sessionId)}">Cancel</a>
+        </div>
+    </form>
+
+    <script type="module" src="/settings.js"></script>
 </body>
 </html>`;
 }
@@ -368,74 +507,83 @@ function createApp({
 
     // Route: Home page with UI
     sessionRouter.get('/', ensureSession, (req, res) => {
+        const sessionId = req.params.sessionId;
         const wsProtocol = req.protocol === 'https' ? 'wss' : 'ws';
-        const wsUrl = `${wsProtocol}://${req.get('host')}/s/${req.params.sessionId}/logs`;
-        res.type('html').send(renderPage(req.params.sessionId, wsUrl));
+        const wsUrl = `${wsProtocol}://${req.get('host')}/s/${sessionId}/logs`;
+        const { settings } = req.session;
+        const ctx = { domain: config.domain, port: config.port, sessionId };
+        const isSelfHosted = isSelfHostedFeedUrl(settings.feedUrl, ctx);
+        const showPing = settings.rssCloud.protocol === 'xml-rpc' || Boolean(settings.rssCloud.pingUrl);
+        const lastUpdatedAt = isSelfHosted
+            ? req.session.feedLastUpdatedAt[feedNameFromSelfHostedUrl(settings.feedUrl, ctx)] ?? new Date(req.session.createdAt)
+            : undefined;
+        res.type('html').send(
+            renderPage(sessionId, wsUrl, settings, { isSelfHosted, showPing, lastUpdatedAt })
+        );
     });
 
-    // Route: parse an arbitrary feed URL for rssCloud/WebSub support. Feeds
-    // this outbound fetch through the same SSRF-guarded fetch as every other
-    // action, since the URL is user-supplied.
-    sessionRouter.post('/actions/discover', ensureSession, jsonParser, async(req, res) => {
-        const sessionId = req.params.sessionId;
-        const { feedUrl } = req.body;
-        const logId = crypto.randomUUID();
+    // Route: settings page — starts from the session's current settings.
+    sessionRouter.get('/settings', ensureSession, (req, res) => {
+        res.type('html').send(renderSettingsPage(req.params.sessionId, req.session.settings));
+    });
 
-        broadcastOutgoingRequest(sessionId, {
-            id: logId,
-            timestamp: new Date().toISOString(),
-            method: 'GET',
-            url: feedUrl,
-            body: { action: 'discover', feedUrl }
-        });
+    // Route: Save — a real <form> POST (not a fetch action), so the browser
+    // navigates back to the main page on success. body-parser's urlencoded
+    // mode doesn't support nested keys, so the form uses flat field names,
+    // reassembled here into the nested settings shape.
+    sessionRouter.post('/settings', ensureSession, urlencodedParser, (req, res) => {
+        req.session.settings = {
+            feedUrl: req.body.feedUrl,
+            rssCloud: {
+                disabled: req.body.rssCloudDisabled === 'on',
+                protocol: req.body.rssCloudProtocol,
+                accepts: req.body.rssCloudAccepts,
+                pingUrl: req.body.rssCloudPingUrl || '',
+                subscribeUrl: req.body.rssCloudSubscribeUrl,
+                rpcUrl: req.body.rssCloudRpcUrl
+            },
+            webSub: {
+                disabled: req.body.webSubDisabled === 'on',
+                hubUrl: req.body.webSubHubUrl,
+                leaseSeconds: req.body.webSubLeaseSeconds || '',
+                secret: req.body.webSubSecret || ''
+            }
+        };
+        res.redirect(302, `/s/${req.params.sessionId}`);
+    });
+
+    // Route: preview what settings a feed URL would produce, for the
+    // settings page's Feed-URL-blur discovery. Never writes
+    // req.session.settings — only POST /settings (Save) persists anything.
+    sessionRouter.post('/actions/discover-settings', ensureSession, jsonParser, async(req, res) => {
+        const { feedUrl, currentSettings } = req.body;
 
         try {
             const result = await discoverFeed({ url: feedUrl, fetch });
-            broadcast(sessionId, {
-                id: logId,
-                direction: 'outgoing',
-                phase: 'response',
-                timestamp: new Date().toISOString(),
-                body: result
-            });
-            res.json(result);
+            if (result.error) {
+                res.json({ settings: null, error: result.error });
+                return;
+            }
+            res.json({ settings: applyDiscoveryToSettings(currentSettings, result) });
         } catch (error) {
-            const message = describeActionError(error);
-            broadcast(sessionId, {
-                id: logId,
-                direction: 'outgoing',
-                phase: 'response',
-                timestamp: new Date().toISOString(),
-                error: message
-            });
-            res.json({ rssCloud: null, webSub: null, error: message });
+            res.json({ settings: null, error: describeActionError(error) });
         }
     });
 
-    // Route: unified Subscribe action — branches by the selected protocol.
-    // `server` optionally overrides the target: for rssCloud this is the hub
-    // origin (pleaseNotify/RPC2 base); for WebSub it's the full hub front-door
-    // URL (path defaults to '' so it isn't double-appended).
-    sessionRouter.post('/actions/subscribe', ensureSession, jsonParser, async(req, res) => {
-        const sessionId = req.params.sessionId;
-        const { protocol, server: serverOverride, leaseSeconds, secret } =
-            req.body;
-        const feedUrl = resolveFeedUrl(sessionId, req.body);
+    // Shared by every settings-driven action below: broadcasts the
+    // request/response pair around `call()`, and never mutates session state
+    // (via `onSuccess`) on the strength of a request that might still fail.
+    function logAndRespondAction(sessionId, res, action, targetUrl, requestBody, call, onSuccess) {
         const logId = crypto.randomUUID();
-
-        // `onSuccess`, when given, runs only once `call()` resolves without
-        // throwing — session state (e.g. the WebSub secret) must never be
-        // mutated on the strength of a request that might still fail.
-        async function logAndRespond(action, targetUrl, requestBody, call, onSuccess) {
-            broadcastOutgoingRequest(sessionId, {
-                id: logId,
-                timestamp: new Date().toISOString(),
-                method: 'POST',
-                url: targetUrl,
-                body: { action, ...requestBody }
-            });
-            try {
-                const result = await call();
+        broadcastOutgoingRequest(sessionId, {
+            id: logId,
+            timestamp: new Date().toISOString(),
+            method: 'POST',
+            url: targetUrl,
+            body: { action, ...requestBody }
+        });
+        return call()
+            .then(result => {
                 onSuccess?.(result);
                 broadcast(sessionId, {
                     id: logId,
@@ -445,7 +593,8 @@ function createApp({
                     ...result
                 });
                 res.json(result);
-            } catch (error) {
+            })
+            .catch(error => {
                 // An egress-guard refusal carries an actionable hint (set
                 // DEBUG_FETCH_ALLOW_CIDRS) so the failure isn't mistaken for a
                 // success in both the traffic log and the browser banner.
@@ -458,46 +607,29 @@ function createApp({
                     error: message
                 });
                 res.json({ error: message });
-            }
-        }
-
-        if (protocol === 'websub') {
-            const hub = createWebSubClient({
-                serverUrl: serverOverride || config.hubServerUrl,
-                path: serverOverride ? '' : undefined,
-                fetch
             });
-            await logAndRespond(
-                'websub-subscribe',
-                serverOverride || hubUrl,
-                // Redact the secret in the logged/broadcast copy — it's still
-                // sent verbatim to the hub below, just never echoed into the
-                // traffic log or session.requestLog.
-                { topicUrl: feedUrl, leaseSeconds, secret: secret ? '(redacted)' : undefined },
-                () => hub.subscribe({
-                    callbackUrl: webSubCallbackUrl(sessionId),
-                    topicUrl: feedUrl,
-                    leaseSeconds,
-                    secret
-                }),
-                () => {
-                    if (secret) {
-                        req.session.webSubSecrets[feedUrl] = secret;
-                    } else {
-                        delete req.session.webSubSecrets[feedUrl];
-                    }
-                }
-            );
+    }
+
+    // Route: rssCloud Subscribe — targets whichever endpoint the session's
+    // settings configure (the RPC2 endpoint for xml-rpc, else the configured
+    // subscribe URL).
+    sessionRouter.post('/actions/rsscloud-subscribe', ensureSession, (req, res) => {
+        const sessionId = req.params.sessionId;
+        const { settings } = req.session;
+        const { disabled, protocol, accepts, subscribeUrl, rpcUrl } = settings.rssCloud;
+
+        if (disabled) {
+            res.json({ error: 'rssCloud is disabled in settings' });
             return;
         }
 
-        const useXmlRpc = protocol === 'rsscloud-xml-rpc';
-        const rssCloudClient = createRssCloudClient({
-            serverUrl: serverOverride || config.hubServerUrl,
-            fetch
-        });
+        const useXmlRpc = protocol === 'xml-rpc';
+        const targetUrl = useXmlRpc ? rpcUrl : subscribeUrl;
+        const rssCloudClient = createRssCloudClient({ fetch });
         const subscribeParams = {
-            protocol: useXmlRpc ? 'xml-rpc' : 'http-post',
+            url: targetUrl,
+            protocol,
+            accept: useXmlRpc ? undefined : accepts,
             callback: {
                 domain: config.domain,
                 port: config.port,
@@ -505,183 +637,178 @@ function createApp({
                     ? `/s/${sessionId}/RPC2`
                     : `/s/${sessionId}/notify`
             },
-            feedUrl
+            feedUrl: settings.feedUrl
         };
-        await logAndRespond(
-            'pleaseNotify',
-            serverOverride || config.hubServerUrl,
+
+        logAndRespondAction(
+            sessionId,
+            res,
+            'rsscloud-subscribe',
+            targetUrl,
             subscribeParams,
             () => rssCloudClient.pleaseNotify(subscribeParams)
         );
     });
 
-    // Route: unified Unsubscribe action (WebSub only).
-    sessionRouter.post('/actions/unsubscribe', ensureSession, jsonParser, async(req, res) => {
+    // Route: rssCloud Ping — targets the RPC2 endpoint for xml-rpc, else the
+    // configured ping URL (which may be blank — the caller isn't testing
+    // ping — in which case there's nothing to call).
+    sessionRouter.post('/actions/rsscloud-ping', ensureSession, (req, res) => {
         const sessionId = req.params.sessionId;
-        const { server: serverOverride } = req.body;
-        const feedUrl = resolveFeedUrl(sessionId, req.body);
-        const logId = crypto.randomUUID();
+        const { settings } = req.session;
+        const { disabled, protocol, accepts, pingUrl, rpcUrl } = settings.rssCloud;
 
-        const hub = createWebSubClient({
-            serverUrl: serverOverride || config.hubServerUrl,
-            path: serverOverride ? '' : undefined,
-            fetch
-        });
-
-        broadcastOutgoingRequest(sessionId, {
-            id: logId,
-            timestamp: new Date().toISOString(),
-            method: 'POST',
-            url: serverOverride || hubUrl,
-            body: { action: 'websub-unsubscribe', topicUrl: feedUrl }
-        });
-
-        try {
-            const result = await hub.unsubscribe({
-                callbackUrl: webSubCallbackUrl(sessionId),
-                topicUrl: feedUrl
-            });
-            // Only drop the stored secret once the hub has actually
-            // acknowledged the unsubscribe — a failed call shouldn't lose it.
-            delete req.session.webSubSecrets[feedUrl];
-            broadcast(sessionId, {
-                id: logId,
-                direction: 'outgoing',
-                phase: 'response',
-                timestamp: new Date().toISOString(),
-                ...result
-            });
-            res.json(result);
-        } catch (error) {
-            const message = describeActionError(error);
-            broadcast(sessionId, {
-                id: logId,
-                direction: 'outgoing',
-                phase: 'response',
-                timestamp: new Date().toISOString(),
-                error: message
-            });
-            res.json({ error: message });
+        if (disabled) {
+            res.json({ error: 'rssCloud is disabled in settings' });
+            return;
         }
-    });
 
-    // Route: unified Publish action (WebSub only). Deliberately accepts only
-    // `feedName` — see the comment on /actions/ping for why.
-    sessionRouter.post('/actions/publish', ensureSession, jsonParser, async(req, res) => {
-        const sessionId = req.params.sessionId;
-        const { feedName = 'rss-01.xml', server: serverOverride } = req.body;
-        const feedUrl = `http://${config.domain}:${config.port}/s/${sessionId}/${feedName}`;
-        const logId = crypto.randomUUID();
-
-        if (!req.session.feedItems[feedName]) {
-            req.session.feedItems[feedName] = [
-                { title: 'initialized', timestamp: new Date() }
-            ];
+        const useXmlRpc = protocol === 'xml-rpc';
+        if (!useXmlRpc && !pingUrl) {
+            res.json({ error: 'no ping URL configured' });
+            return;
         }
-        const now = new Date();
-        req.session.feedItems[feedName].unshift({
-            title: `Update at ${now.toISOString()}`,
-            timestamp: now
-        });
 
-        const hub = createWebSubClient({
-            serverUrl: serverOverride || config.hubServerUrl,
-            path: serverOverride ? '' : undefined,
-            fetch
-        });
-
-        broadcastOutgoingRequest(sessionId, {
-            id: logId,
-            timestamp: new Date().toISOString(),
-            method: 'POST',
-            url: serverOverride || hubUrl,
-            body: { action: 'websub-publish', topicUrl: feedUrl }
-        });
-
-        try {
-            const result = await hub.publish({ topicUrl: feedUrl });
-            broadcast(sessionId, {
-                id: logId,
-                direction: 'outgoing',
-                phase: 'response',
-                timestamp: new Date().toISOString(),
-                ...result
-            });
-            res.json(result);
-        } catch (error) {
-            const message = describeActionError(error);
-            broadcast(sessionId, {
-                id: logId,
-                direction: 'outgoing',
-                phase: 'response',
-                timestamp: new Date().toISOString(),
-                error: message
-            });
-            res.json({ error: message });
-        }
-    });
-
-    // Route: unified Ping action. Deliberately accepts only `feedName` (never
-    // an arbitrary feedUrl) — this session can only ever ping/publish a feed
-    // it itself serves, never someone else's; that's the actual enforcement
-    // point for "don't ping/publish someone else's feed" (the UI hiding
-    // these controls in subscriber mode is a client-side mirror of this).
-    sessionRouter.post('/actions/ping', ensureSession, jsonParser, async(req, res) => {
-        const sessionId = req.params.sessionId;
-        const { protocol, feedName = 'rss-01.xml', server: serverOverride } =
-            req.body;
-        const feedUrl = `http://${config.domain}:${config.port}/s/${sessionId}/${feedName}`;
-        const logId = crypto.randomUUID();
-
-        if (!req.session.feedItems[feedName]) {
-            req.session.feedItems[feedName] = [
-                { title: 'initialized', timestamp: new Date() }
-            ];
-        }
-        const now = new Date();
-        req.session.feedItems[feedName].unshift({
-            title: `Update at ${now.toISOString()}`,
-            timestamp: now
-        });
-
-        const rssCloudClient = createRssCloudClient({
-            serverUrl: serverOverride || config.hubServerUrl,
-            fetch
-        });
+        const targetUrl = useXmlRpc ? rpcUrl : pingUrl;
+        const rssCloudClient = createRssCloudClient({ fetch });
         const pingParams = {
-            feedUrl,
-            transport: protocol === 'rsscloud-xml-rpc' ? 'xml-rpc' : 'rest'
+            url: targetUrl,
+            feedUrl: settings.feedUrl,
+            transport: useXmlRpc ? 'xml-rpc' : 'rest',
+            accept: useXmlRpc ? undefined : accepts
         };
 
-        broadcastOutgoingRequest(sessionId, {
-            id: logId,
-            timestamp: new Date().toISOString(),
-            method: 'POST',
-            url: serverOverride || config.hubServerUrl,
-            body: { action: 'ping', ...pingParams }
-        });
+        logAndRespondAction(
+            sessionId,
+            res,
+            'rsscloud-ping',
+            targetUrl,
+            pingParams,
+            () => rssCloudClient.ping(pingParams)
+        );
+    });
 
-        try {
-            const result = await rssCloudClient.ping(pingParams);
-            broadcast(sessionId, {
-                id: logId,
-                direction: 'outgoing',
-                phase: 'response',
-                timestamp: new Date().toISOString(),
-                ...result
-            });
-            res.json(result);
-        } catch (error) {
-            const message = describeActionError(error);
-            broadcast(sessionId, {
-                id: logId,
-                direction: 'outgoing',
-                phase: 'response',
-                timestamp: new Date().toISOString(),
-                error: message
-            });
-            res.json({ error: message });
+    // Route: WebSub Subscribe — targets the session's configured hub URL.
+    sessionRouter.post('/actions/websub-subscribe', ensureSession, (req, res) => {
+        const sessionId = req.params.sessionId;
+        const { settings } = req.session;
+        const feedUrl = settings.feedUrl;
+
+        if (settings.webSub.disabled) {
+            res.json({ error: 'WebSub is disabled in settings' });
+            return;
         }
+
+        const { hubUrl: targetUrl, leaseSeconds, secret } = settings.webSub;
+        const hub = createWebSubClient({ serverUrl: targetUrl, path: '', fetch });
+
+        logAndRespondAction(
+            sessionId,
+            res,
+            'websub-subscribe',
+            targetUrl,
+            // Redact the secret in the logged/broadcast copy — it's still
+            // sent verbatim to the hub below, just never echoed into the log.
+            { topicUrl: feedUrl, leaseSeconds, secret: secret ? '(redacted)' : undefined },
+            () => hub.subscribe({
+                callbackUrl: webSubCallbackUrl(sessionId),
+                topicUrl: feedUrl,
+                leaseSeconds: leaseSeconds || undefined,
+                secret: secret || undefined
+            }),
+            () => {
+                if (secret) {
+                    req.session.webSubSecrets[feedUrl] = secret;
+                } else {
+                    delete req.session.webSubSecrets[feedUrl];
+                }
+            }
+        );
+    });
+
+    // Route: WebSub Unsubscribe — targets the session's configured hub URL.
+    sessionRouter.post('/actions/websub-unsubscribe', ensureSession, (req, res) => {
+        const sessionId = req.params.sessionId;
+        const { settings } = req.session;
+        const feedUrl = settings.feedUrl;
+
+        if (settings.webSub.disabled) {
+            res.json({ error: 'WebSub is disabled in settings' });
+            return;
+        }
+
+        const targetUrl = settings.webSub.hubUrl;
+        const hub = createWebSubClient({ serverUrl: targetUrl, path: '', fetch });
+
+        logAndRespondAction(
+            sessionId,
+            res,
+            'websub-unsubscribe',
+            targetUrl,
+            { topicUrl: feedUrl },
+            () => hub.unsubscribe({
+                callbackUrl: webSubCallbackUrl(sessionId),
+                topicUrl: feedUrl
+            }),
+            // Only drop the stored secret once the hub has actually
+            // acknowledged the unsubscribe — a failed call shouldn't lose it.
+            () => { delete req.session.webSubSecrets[feedUrl]; }
+        );
+    });
+
+    // Route: WebSub Publish — targets the session's configured hub URL. No
+    // longer touches feedItems (see Update Feed below) — Publish just
+    // notifies about whatever the feed currently holds.
+    sessionRouter.post('/actions/websub-publish', ensureSession, (req, res) => {
+        const sessionId = req.params.sessionId;
+        const { settings } = req.session;
+        const feedUrl = settings.feedUrl;
+
+        if (settings.webSub.disabled) {
+            res.json({ error: 'WebSub is disabled in settings' });
+            return;
+        }
+
+        const targetUrl = settings.webSub.hubUrl;
+        const hub = createWebSubClient({ serverUrl: targetUrl, path: '', fetch });
+
+        logAndRespondAction(
+            sessionId,
+            res,
+            'websub-publish',
+            targetUrl,
+            { topicUrl: feedUrl },
+            () => hub.publish({ topicUrl: feedUrl })
+        );
+    });
+
+    // Route: Update Feed — the only action that adds a new item to a
+    // self-hosted feed and bumps its "last updated" timestamp. Ping/Publish
+    // above just notify about whatever content is already there.
+    sessionRouter.post('/actions/update-feed', ensureSession, (req, res) => {
+        const sessionId = req.params.sessionId;
+        const { settings } = req.session;
+        const ctx = { domain: config.domain, port: config.port, sessionId };
+
+        if (!isSelfHostedFeedUrl(settings.feedUrl, ctx)) {
+            res.json({ error: 'feed is not self-hosted' });
+            return;
+        }
+
+        const feedName = feedNameFromSelfHostedUrl(settings.feedUrl, ctx);
+        if (!req.session.feedItems[feedName]) {
+            req.session.feedItems[feedName] = [
+                { title: 'initialized', timestamp: new Date() }
+            ];
+        }
+        const now = new Date();
+        req.session.feedItems[feedName].unshift({
+            title: `Update at ${now.toISOString()}`,
+            timestamp: now
+        });
+        req.session.feedLastUpdatedAt[feedName] = now;
+
+        res.json({ lastUpdatedAt: now });
     });
 
     // Route: WebSub intent verification — the hub GETs the callback with a
@@ -720,7 +847,10 @@ function createApp({
         res.type('text/xml').send(buildNotifyResponse());
     });
 
-    // Route: Serve RSS feeds (must be after specific routes)
+    // Route: Serve RSS feeds (must be after specific routes). The <cloud>/hub
+    // this session's own test feed advertises reflects its own settings, not
+    // the global default — so discovering your own test feed round-trips
+    // against whatever hub you're actually testing.
     sessionRouter.get('/:feedName', requireLiveSession, (req, res) => {
         const sessionId = req.params.sessionId;
         const feedName = req.params.feedName;
@@ -731,23 +861,19 @@ function createApp({
             return;
         }
 
+        const { settings } = req.session;
         const items = req.session.feedItems[feedName] || [
             { title: 'initialized', timestamp: new Date() }
         ];
         const feedUrl = `http://${config.domain}:${config.port}/s/${sessionId}/${feedName}`;
+        const hub = settings.webSub.disabled ? undefined : settings.webSub.hubUrl;
 
         const rssXml = renderCloudFeed({
             title: `Test Feed: ${feedName}`,
             link: feedUrl,
             description: 'Test feed for rssCloud',
-            cloud: {
-                domain: hubOrigin.hostname,
-                port: hubPort,
-                path: '/RPC2',
-                registerProcedure: 'rssCloud.pleaseNotify',
-                protocol: 'xml-rpc'
-            },
-            hub: hubUrl,
+            cloud: cloudFromSettings(settings.rssCloud),
+            hub,
             items: items.map((item, index) => ({
                 title: item.title,
                 description: `Feed item: ${item.title}`,
@@ -755,6 +881,11 @@ function createApp({
                 guid: `${feedName}-${index}`
             }))
         });
+        // Advertise the hub via the HTTP Link header too, not just the feed
+        // body — a real WebSub-supporting server typically does both.
+        if (hub) {
+            res.set('Link', `<${hub}>; rel="hub"`);
+        }
         res.type('application/rss+xml').send(rssXml);
     });
 

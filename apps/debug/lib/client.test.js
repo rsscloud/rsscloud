@@ -35,6 +35,21 @@ test('ping posts the feed URL to /ping by default', async() => {
     assert.deepEqual(res, { status: 200, body: 'OK' });
 });
 
+test('ping posts to an explicit url override instead of serverUrl + /ping', async() => {
+    const { fn, calls } = fakeFetch();
+    const client = createRssCloudClient({
+        serverUrl: 'http://hub.example:5337',
+        fetch: fn
+    });
+
+    await client.ping({
+        feedUrl: 'https://feed.example/rss',
+        url: 'http://other.example/custom-ping'
+    });
+
+    assert.equal(calls[0].url, 'http://other.example/custom-ping');
+});
+
 test('ping posts to /RPC2 over xml-rpc', async() => {
     const { fn, calls } = fakeFetch();
     const client = createRssCloudClient({
@@ -52,6 +67,42 @@ test('ping posts to /RPC2 over xml-rpc', async() => {
     const call = await parseMethodCall(calls[0].init.body);
     assert.equal(call.methodName, 'rssCloud.ping');
     assert.deepEqual(call.params, ['https://feed.example/rss']);
+});
+
+test('ping sets the Accept header to application/json when accept is json', async() => {
+    const { fn, calls } = fakeFetch();
+    const client = createRssCloudClient({
+        serverUrl: 'http://hub.example:5337',
+        fetch: fn
+    });
+
+    await client.ping({ feedUrl: 'https://feed.example/rss', accept: 'json' });
+
+    assert.equal(calls[0].init.headers.Accept, 'application/json');
+});
+
+test('ping sets the Accept header to application/xml when accept is xml (not text/xml — the server negotiates on the mime type, not the XML-RPC Content-Type convention)', async() => {
+    const { fn, calls } = fakeFetch();
+    const client = createRssCloudClient({
+        serverUrl: 'http://hub.example:5337',
+        fetch: fn
+    });
+
+    await client.ping({ feedUrl: 'https://feed.example/rss', accept: 'xml' });
+
+    assert.equal(calls[0].init.headers.Accept, 'application/xml');
+});
+
+test('ping sends no Accept override when accept is not given', async() => {
+    const { fn, calls } = fakeFetch();
+    const client = createRssCloudClient({
+        serverUrl: 'http://hub.example:5337',
+        fetch: fn
+    });
+
+    await client.ping({ feedUrl: 'https://feed.example/rss' });
+
+    assert.equal(calls[0].init.headers.Accept, undefined);
 });
 
 test('pleaseNotify over http-post sends the form with an explicit domain', async() => {
@@ -90,6 +141,23 @@ test('pleaseNotify over http-post omits domain when none is given', async() => {
     });
 
     assert.equal(form(calls[0].init).has('domain'), false);
+});
+
+test('pleaseNotify posts to an explicit url override instead of serverUrl + /pleaseNotify', async() => {
+    const { fn, calls } = fakeFetch();
+    const client = createRssCloudClient({
+        serverUrl: 'http://hub.example:5337',
+        fetch: fn
+    });
+
+    await client.pleaseNotify({
+        protocol: 'http-post',
+        callback: { port: 9000, path: '/notify' },
+        feedUrl: 'https://feed.example/rss',
+        url: 'http://other.example/custom-subscribe'
+    });
+
+    assert.equal(calls[0].url, 'http://other.example/custom-subscribe');
 });
 
 test('pleaseNotify over xml-rpc sends the six params', async() => {
@@ -145,6 +213,18 @@ test('strips a trailing slash from the server URL', async() => {
     await client.ping({ feedUrl: 'https://feed.example/rss' });
 
     assert.equal(calls[0].url, 'http://hub.example:5337/ping');
+});
+
+test('serverUrl is optional when every call passes an explicit url', async() => {
+    const { fn, calls } = fakeFetch();
+    const client = createRssCloudClient({ fetch: fn });
+
+    await client.ping({
+        feedUrl: 'https://feed.example/rss',
+        url: 'http://other.example/custom-ping'
+    });
+
+    assert.equal(calls[0].url, 'http://other.example/custom-ping');
 });
 
 test('defaults to the global fetch when none is injected', () => {

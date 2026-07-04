@@ -98,6 +98,144 @@ test('omits the atom namespace and links when no hub is given', async() => {
     assert.equal(rss.channel['atom:link'], undefined);
 });
 
+const HTTP_CLOUD = {
+    domain: 'hub.example',
+    port: 5337,
+    path: '/pleaseNotify',
+    registerProcedure: '',
+    protocol: 'http-post'
+};
+
+test('places <cloud>, <source:cloud>, and <atom:link> before <item> in the channel', () => {
+    const xml = renderCloudFeed({
+        title: 'Test Feed',
+        link: 'http://sub.example:9000/rss-01.xml',
+        description: 'Test feed for rssCloud',
+        cloud: HTTP_CLOUD,
+        hub: 'http://localhost:5337/websub',
+        items: [
+            {
+                title: 'Update one',
+                description: 'first',
+                pubDate: new Date('2026-01-02T03:04:05Z'),
+                guid: 'rss-01-0'
+            }
+        ]
+    });
+
+    const itemIndex = xml.indexOf('<item>');
+    assert.ok(xml.indexOf('<cloud') < itemIndex);
+    assert.ok(xml.indexOf('<source:cloud') < itemIndex);
+    assert.ok(xml.indexOf('<atom:link') < itemIndex);
+});
+
+// Per https://source.scripting.com/ : "The <source:cloud> element has no
+// attributes and its value is the URL of the cloud server" — a plain URL,
+// not a mirror of <cloud>'s domain/port/path/protocol attributes.
+test('renders <source:cloud> as a plain URL (no attributes) for an http-post cloud', async() => {
+    const xml = renderCloudFeed({
+        title: 'Test Feed',
+        link: 'http://sub.example:9000/rss-01.xml',
+        description: 'Test feed for rssCloud',
+        cloud: HTTP_CLOUD,
+        items: [
+            {
+                title: 'Update one',
+                description: 'first',
+                pubDate: new Date('2026-01-02T03:04:05Z'),
+                guid: 'rss-01-0'
+            }
+        ]
+    });
+
+    const { rss } = await reparse(xml);
+    assert.equal(rss.$['xmlns:source'], 'https://source.scripting.com/');
+    assert.equal(rss.channel['source:cloud'], 'http://hub.example:5337/pleaseNotify');
+});
+
+test('renders <source:cloud> with an https:// URL for an https-post cloud, omitting the default 443 port', async() => {
+    const xml = renderCloudFeed({
+        title: 'Test Feed',
+        link: 'http://sub.example:9000/rss-01.xml',
+        description: 'Test feed for rssCloud',
+        cloud: { ...HTTP_CLOUD, port: 443, protocol: 'https-post' },
+        items: [
+            {
+                title: 'Update one',
+                description: 'first',
+                pubDate: new Date('2026-01-02T03:04:05Z'),
+                guid: 'rss-01-0'
+            }
+        ]
+    });
+
+    const { rss } = await reparse(xml);
+    assert.equal(rss.channel['source:cloud'], 'https://hub.example/pleaseNotify');
+});
+
+// source:cloud is meant to replace SOAP/XML-RPC entirely with a plain URL —
+// it has no way to express "this endpoint speaks XML-RPC," so omit it
+// rather than emit a URL a plain-HTTP consumer would misinterpret.
+test('omits <source:cloud> (and its namespace) for an xml-rpc cloud, which it cannot represent', async() => {
+    const xml = renderCloudFeed({
+        title: 'Test Feed',
+        link: 'http://sub.example:9000/rss-01.xml',
+        description: 'Test feed for rssCloud',
+        cloud: CLOUD,
+        items: [
+            {
+                title: 'Update one',
+                description: 'first',
+                pubDate: new Date('2026-01-02T03:04:05Z'),
+                guid: 'rss-01-0'
+            }
+        ]
+    });
+
+    const { rss } = await reparse(xml);
+    assert.equal(rss.channel['source:cloud'], undefined);
+    assert.equal(rss.$['xmlns:source'], undefined);
+});
+
+test('omits source:cloud and its namespace when no cloud is given', async() => {
+    const xml = renderCloudFeed({
+        title: 'Test Feed',
+        link: 'http://sub.example:9000/rss-01.xml',
+        description: 'Test feed for rssCloud',
+        items: [
+            {
+                title: 'Update one',
+                description: 'first',
+                pubDate: new Date('2026-01-02T03:04:05Z'),
+                guid: 'rss-01-0'
+            }
+        ]
+    });
+
+    const { rss } = await reparse(xml);
+    assert.equal(rss.channel['source:cloud'], undefined);
+    assert.equal(rss.$['xmlns:source'], undefined);
+});
+
+test('omits the <cloud> element entirely when no cloud is given', async() => {
+    const xml = renderCloudFeed({
+        title: 'Test Feed',
+        link: 'http://sub.example:9000/rss-01.xml',
+        description: 'Test feed for rssCloud',
+        items: [
+            {
+                title: 'Update one',
+                description: 'first',
+                pubDate: new Date('2026-01-02T03:04:05Z'),
+                guid: 'rss-01-0'
+            }
+        ]
+    });
+
+    const { rss } = await reparse(xml);
+    assert.equal(rss.channel.cloud, undefined);
+});
+
 test('renders multiple items in order', async() => {
     const xml = renderCloudFeed({
         title: 'Test Feed',
