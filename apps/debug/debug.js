@@ -173,9 +173,13 @@ const debugStyles = `
             display: flex;
             align-items: center;
             justify-content: space-between;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
         }
         .page-header h1 {
             margin-bottom: 0;
+            padding-bottom: 0;
             border-bottom: none;
         }
         .settings-link {
