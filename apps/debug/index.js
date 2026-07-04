@@ -1,6 +1,6 @@
 require('dotenv').config();
 
-const { createApp } = require('./client'),
+const { createApp } = require('./debug'),
     { createSessionStore } = require('./lib/session-store'),
     config = require('./config');
 

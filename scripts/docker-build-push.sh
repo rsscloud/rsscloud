@@ -2,7 +2,7 @@
 
 # Docker Build and Push Script for rsscloud
 # Builds and pushes a multi-platform image to the GitHub Container Registry
-# (ghcr.io/rsscloud/<target>) for either the server or the client app.
+# (ghcr.io/rsscloud/<target>) for either the server or the debug harness.
 
 set -e  # Exit on any error
 
@@ -34,7 +34,7 @@ log_error() {
 }
 
 show_usage() {
-    echo "Usage: $0 <server|client> [OPTIONS] [CUSTOM_TAG]"
+    echo "Usage: $0 <server|debug> [OPTIONS] [CUSTOM_TAG]"
     echo ""
     echo "Options:"
     echo "  --dry-run         Show what would be done without executing"
@@ -42,7 +42,7 @@ show_usage() {
     echo ""
     echo "Examples:"
     echo "  $0 server                 # Build and push the server with version + latest tags"
-    echo "  $0 client beta            # Build and push the client with version + latest + beta tags"
+    echo "  $0 debug beta             # Build and push the debug harness with version + latest + beta tags"
     echo "  $0 server --dry-run       # Show what the server build would do, without executing"
     echo ""
 }
@@ -62,7 +62,7 @@ while [[ $# -gt 0 ]]; do
             DRY_RUN=true
             shift
             ;;
-        server|client)
+        server|debug)
             TARGET="$1"
             shift
             ;;
@@ -74,7 +74,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [ -z "$TARGET" ]; then
-    log_error "Missing target: specify 'server' or 'client'"
+    log_error "Missing target: specify 'server' or 'debug'"
     echo ""
     show_usage
     exit 1

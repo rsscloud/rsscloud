@@ -1,6 +1,6 @@
 {
     "apps/server": "3.0.0",
-    "apps/client": "0.0.0",
+    "apps/debug": "0.0.0",
     "packages/xml-rpc": "0.0.0",
     "packages/core": "0.0.0",
     "packages/express": "0.0.0"

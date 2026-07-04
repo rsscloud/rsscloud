@@ -10,10 +10,10 @@
 # To pin a release, replace `:latest` with a version tag (e.g.
 # ghcr.io/rsscloud/server:4.0.0).
 #
-# The `client` service is the rssCloud/WebSub test harness (apps/client).
+# The `debug` service is the rssCloud/WebSub test harness (apps/debug).
 # Point a browser at it to test the paired hub, or edit its
-# HUB_SERVER_URL/CLIENT_FETCH_ALLOW_CIDRS to test a different one. Remove the
-# `client` service entirely if you only want the hub.
+# HUB_SERVER_URL/DEBUG_FETCH_ALLOW_CIDRS to test a different one. Remove the
+# `debug` service entirely if you only want the hub.
 
 services:
   rsscloud:
@@ -54,9 +54,9 @@ services:
       retries: 3
       start_period: 10s
 
-  client:
-    image: ghcr.io/rsscloud/client:latest
-    container_name: rsscloud-client
+  debug:
+    image: ghcr.io/rsscloud/debug:latest
+    container_name: rsscloud-debug
     restart: unless-stopped
     networks:
       - rsscloud-net
@@ -79,11 +79,11 @@ services:
       # Scoped to exactly this stack's dedicated subnet (defined below), not
       # Docker's whole default bridge range, so pasting an arbitrary feed URL
       # into Discover can't reach anything else on the host's private network.
-      CLIENT_FETCH_ALLOW_CIDRS: "172.28.5.0/24"
+      DEBUG_FETCH_ALLOW_CIDRS: "172.28.5.0/24"
 
 networks:
   # A dedicated, fixed subnet (rather than Docker's auto-assigned default
-  # bridge range) so CLIENT_FETCH_ALLOW_CIDRS above can be scoped tightly to
+  # bridge range) so DEBUG_FETCH_ALLOW_CIDRS above can be scoped tightly to
   # just this stack instead of every private address Docker might use.
   rsscloud-net:
     driver: bridge

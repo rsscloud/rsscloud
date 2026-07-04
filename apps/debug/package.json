@@ -1,5 +1,5 @@
 {
-    "name": "@rsscloud/client-app",
+    "name": "@rsscloud/debug",
     "version": "0.0.0",
     "private": true,
     "description": "Interactive rssCloud/WebSub test harness (unified subscribe/publish UI, feed discovery, live traffic log, session-isolated for public deployment)",

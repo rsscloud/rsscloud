@@ -9,7 +9,7 @@ A monorepo for the [rssCloud](http://rsscloud.org/) notification protocol.
 ## Packages
 
 - **[`apps/server`](apps/server/README.md)** — rssCloud Server: an Express implementation of the rssCloud notification protocol. Handles subscriptions, ping, and notifications for RSS feed updates.
-- **[`apps/client`](apps/client/README.md)** — a private, interactive dev harness for the rssCloud client: a Subscribe/Ping UI with a request log that hosts a notify endpoint and drives a server. Not published.
+- **[`apps/debug`](apps/debug/README.md)** — a private, interactive debug harness for the rssCloud protocol's Client (subscriber/publisher) side: a Subscribe/Ping UI with a request log that hosts a notify endpoint and drives a server. Not published.
 - **[`packages/core`](packages/core/README.md)** — `@rsscloud/core`: shared primitives for subscriptions, notifications, and feed processing.
 - **[`packages/express`](packages/express/README.md)** — `@rsscloud/express`: Express middleware for the rssCloud front doors — `pleaseNotify`, `ping`, and the `RPC2` endpoint, built on `@rsscloud/core`.
 - **[`packages/xml-rpc`](packages/xml-rpc/README.md)** — `@rsscloud/xml-rpc`: a generic XML-RPC codec — parse and build `methodCall`/`methodResponse` documents.

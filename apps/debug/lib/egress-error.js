@@ -1,12 +1,12 @@
 // Turns a caught outbound-action error into a user-facing message. The one case
 // worth special-casing is the SSRF egress guard (`@rsscloud/core`'s
 // SsrfBlockedError) refusing a loopback/private target: on a fresh checkout with
-// no `apps/client/.env`, every call at a local hub is refused, and the raw
+// no `apps/debug/.env`, every call at a local hub is refused, and the raw
 // "Refusing to connect …" message doesn't tell the operator how to fix it.
 
 const ALLOWLIST_HINT =
     'The harness\'s egress guard refused a loopback/private target. ' +
-    'Set CLIENT_FETCH_ALLOW_CIDRS (see apps/client/.env.example).';
+    'Set DEBUG_FETCH_ALLOW_CIDRS (see apps/debug/.env.example).';
 
 // Recognise the guard by name first (robust — set by SsrfBlockedError), falling
 // back to the message shape so a re-thrown/wrapped error is still caught.

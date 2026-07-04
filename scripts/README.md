@@ -2,9 +2,9 @@
 
 ## docker-build-push.sh
 
-Builds a Docker image for the `server` or `client` app and pushes it to the
+Builds a Docker image for the `server` or `debug` app and pushes it to the
 GitHub Container Registry as `ghcr.io/rsscloud/server` or
-`ghcr.io/rsscloud/client`.
+`ghcr.io/rsscloud/debug`.
 
 ### Features
 
@@ -20,11 +20,11 @@ GitHub Container Registry as `ghcr.io/rsscloud/server` or
 ```bash
 # Full build with quality checks
 pnpm docker:build-push server
-pnpm docker:build-push client
+pnpm docker:build-push debug
 
 # Dry run — show what would happen without building/pushing
 pnpm docker:dry-run server
-pnpm docker:dry-run client
+pnpm docker:dry-run debug
 
 # Direct script usage (e.g. with a custom tag)
 ./scripts/docker-build-push.sh server beta
@@ -59,14 +59,14 @@ docker run -d -p 5337:5337 \
   ghcr.io/rsscloud/server:latest
 ```
 
-The client (the rssCloud/WebSub test harness) holds no persistent state — sessions
+The debug harness (the rssCloud/WebSub test harness) holds no persistent state — sessions
 live in memory for the process lifetime — so no volume is needed.
 
 ```bash
 docker run -d -p 9000:9000 \
   -e DOMAIN=cloud.example.com \
   -e HUB_SERVER_URL=https://cloud.example.com/websub \
-  ghcr.io/rsscloud/client:latest
+  ghcr.io/rsscloud/debug:latest
 ```
 
 > The `docker-compose.yml` under `apps/e2e/` relaxes the SSRF egress protection so

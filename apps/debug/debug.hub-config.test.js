@@ -1,12 +1,12 @@
-// Isolated from client.test.js: HUB_SERVER_URL must be set before config.js
-// (required transitively by client.js) reads process.env, and config.js is a
+// Isolated from debug.test.js: HUB_SERVER_URL must be set before config.js
+// (required transitively by debug.js) reads process.env, and config.js is a
 // module-level singleton — this can only be exercised in its own process,
 // which `node --test` already gives each file.
 process.env.HUB_SERVER_URL = 'http://hub.example.org:8080';
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createApp } = require('./client');
+const { createApp } = require('./debug');
 const request = require('supertest');
 
 test('the served test feed\'s <cloud> element derives domain/port from HUB_SERVER_URL', async() => {

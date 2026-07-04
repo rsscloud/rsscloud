@@ -87,10 +87,10 @@ function renderPage(sessionId, wsUrl) {
     return `<!DOCTYPE html>
 <html>
 <head>
-    <title>rssCloud Test Client</title>
+    <title>rssCloud Debug Harness</title>
     <link href="/css/style.css" rel="stylesheet" />
     <style>
-        /* Client-specific additions layered on the shared server stylesheet. */
+        /* Debug-harness-specific additions layered on the shared server stylesheet. */
         select {
             width: 100%;
             padding: 10px;
@@ -146,7 +146,7 @@ function renderPage(sessionId, wsUrl) {
     </style>
 </head>
 <body data-session-id="${escapeHtml(sessionId)}">
-    <h1>rssCloud Test Client</h1>
+    <h1>rssCloud Debug Harness</h1>
 
     <div class="controls">
         <fieldset>
@@ -230,7 +230,7 @@ function renderPage(sessionId, wsUrl) {
 // process state).
 function createApp({
     fetch = createGuardedFetch({
-        allowCidrs: config.clientFetchAllowCidrs,
+        allowCidrs: config.debugFetchAllowCidrs,
         timeoutMs: config.requestTimeout
     }),
     sessionStore = createSessionStore(),
@@ -447,7 +447,7 @@ function createApp({
                 res.json(result);
             } catch (error) {
                 // An egress-guard refusal carries an actionable hint (set
-                // CLIENT_FETCH_ALLOW_CIDRS) so the failure isn't mistaken for a
+                // DEBUG_FETCH_ALLOW_CIDRS) so the failure isn't mistaken for a
                 // success in both the traffic log and the browser banner.
                 const message = describeActionError(error);
                 broadcast(sessionId, {
