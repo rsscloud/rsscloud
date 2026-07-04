@@ -18,6 +18,7 @@ const NEGOTIATED_VIEWS = [
 // Per-protocol documentation pages, rendered from docs/<slug>.md into the shared
 // `docs` view at /docs/<slug>. README.md is the index at /docs.
 const DOC_PAGES = [
+    { slug: 'quick-start', label: 'Quick Start' },
     { slug: 'rsscloud-rest', label: 'rssCloud over REST' },
     { slug: 'rsscloud-xml-rpc', label: 'rssCloud over XML-RPC' },
     { slug: 'websub', label: 'WebSub' },
