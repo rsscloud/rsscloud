@@ -48,6 +48,21 @@ function cloudFromSettings(rssCloud) {
     };
 }
 
+// A blank or malformed URL here would otherwise only surface later, as a
+// 500 from cloudFromSettings the next time the self-served feed is
+// requested — reject it at save time instead.
+function isValidHttpUrl(value) {
+    if (!value) {
+        return false;
+    }
+    try {
+        const parsed = new URL(value);
+        return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    } catch {
+        return false;
+    }
+}
+
 // This session's callback URL the hub notifies for WebSub content
 // distribution and intent verification.
 function webSubCallbackUrl(sessionId) {
@@ -262,7 +277,7 @@ function renderPage(sessionId, wsUrl, settings, { isSelfHosted, showPing, lastUp
 // (computed defaults on first visit, whatever was last saved after that).
 // Protocol-dependent field visibility is toggled client-side (public/settings.js)
 // since it must react live to the form's own dropdown/checkbox changes.
-function renderSettingsPage(sessionId, settings) {
+function renderSettingsPage(sessionId, settings, { error } = {}) {
     const ctx = { domain: config.domain, port: config.port, sessionId };
     const context = {
         selfHostedPrefixes: selfHostedPrefixes(ctx),
@@ -345,13 +360,13 @@ function renderSettingsPage(sessionId, settings) {
                     </label>
                     <label for="webSubSecret">
                         secret
-                        <input type="text" id="webSubSecret" name="webSubSecret" value="${escapeHtml(settings.webSub.secret ?? '')}" placeholder="optional">
+                        <input type="password" id="webSubSecret" name="webSubSecret" value="${escapeHtml(settings.webSub.secret ?? '')}" placeholder="optional">
                     </label>
                 </div>
             </div>
         </fieldset>
 
-        <div id="actionError" class="action-error" role="alert" hidden></div>
+        <div id="actionError" class="action-error" role="alert"${error ? '' : ' hidden'}>${error ? escapeHtml(error) : ''}</div>
         <div class="actions">
             <button type="submit">Save</button>
             <a href="/s/${escapeHtml(sessionId)}">Cancel</a>
@@ -532,16 +547,43 @@ function createApp({
     // mode doesn't support nested keys, so the form uses flat field names,
     // reassembled here into the nested settings shape.
     sessionRouter.post('/settings', ensureSession, urlencodedParser, (req, res) => {
+        const rssCloud = {
+            disabled: req.body.rssCloudDisabled === 'on',
+            protocol: req.body.rssCloudProtocol,
+            accepts: req.body.rssCloudAccepts,
+            pingUrl: req.body.rssCloudPingUrl || '',
+            subscribeUrl: req.body.rssCloudSubscribeUrl,
+            rpcUrl: req.body.rssCloudRpcUrl
+        };
+
+        // Whichever URL cloudFromSettings will actually read (rpcUrl for
+        // xml-rpc, else subscribeUrl) must be valid before it's saved — a
+        // blank/malformed one otherwise only surfaces later as a 500 the
+        // next time the self-served feed is requested.
+        if (!rssCloud.disabled) {
+            const requiredUrl = rssCloud.protocol === 'xml-rpc' ? rssCloud.rpcUrl : rssCloud.subscribeUrl;
+            if (!isValidHttpUrl(requiredUrl)) {
+                res.status(400).type('html').send(renderSettingsPage(req.params.sessionId, {
+                    feedUrl: req.body.feedUrl,
+                    rssCloud,
+                    webSub: {
+                        disabled: req.body.webSubDisabled === 'on',
+                        hubUrl: req.body.webSubHubUrl,
+                        leaseSeconds: req.body.webSubLeaseSeconds || '',
+                        secret: req.body.webSubSecret || ''
+                    }
+                }, {
+                    error: rssCloud.protocol === 'xml-rpc'
+                        ? 'rssCloud is enabled but the RPC2 endpoint URL is missing or invalid.'
+                        : 'rssCloud is enabled but the subscribe URL is missing or invalid.'
+                }));
+                return;
+            }
+        }
+
         req.session.settings = {
             feedUrl: req.body.feedUrl,
-            rssCloud: {
-                disabled: req.body.rssCloudDisabled === 'on',
-                protocol: req.body.rssCloudProtocol,
-                accepts: req.body.rssCloudAccepts,
-                pingUrl: req.body.rssCloudPingUrl || '',
-                subscribeUrl: req.body.rssCloudSubscribeUrl,
-                rpcUrl: req.body.rssCloudRpcUrl
-            },
+            rssCloud,
             webSub: {
                 disabled: req.body.webSubDisabled === 'on',
                 hubUrl: req.body.webSubHubUrl,

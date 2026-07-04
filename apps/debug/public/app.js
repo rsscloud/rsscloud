@@ -55,9 +55,16 @@ function bindAction(buttonId, action, onSuccess) {
         return;
     }
     button.addEventListener('click', async() => {
-        const result = await postAction(action);
-        if (!result.error) {
-            onSuccess?.(result);
+        // Disabled for the duration of the request — a rapid double-click
+        // would otherwise fire two overlapping calls against a real hub.
+        button.disabled = true;
+        try {
+            const result = await postAction(action);
+            if (!result.error) {
+                onSuccess?.(result);
+            }
+        } finally {
+            button.disabled = false;
         }
     });
 }

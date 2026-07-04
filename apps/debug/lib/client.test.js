@@ -160,6 +160,56 @@ test('pleaseNotify posts to an explicit url override instead of serverUrl + /ple
     assert.equal(calls[0].url, 'http://other.example/custom-subscribe');
 });
 
+test('pleaseNotify sets the Accept header to application/json when accept is json', async() => {
+    const { fn, calls } = fakeFetch();
+    const client = createRssCloudClient({
+        serverUrl: 'http://hub.example:5337',
+        fetch: fn
+    });
+
+    await client.pleaseNotify({
+        protocol: 'http-post',
+        callback: { port: 9000, path: '/notify' },
+        feedUrl: 'https://feed.example/rss',
+        accept: 'json'
+    });
+
+    assert.equal(calls[0].init.headers.Accept, 'application/json');
+});
+
+test('pleaseNotify sets the Accept header to application/xml when accept is xml', async() => {
+    const { fn, calls } = fakeFetch();
+    const client = createRssCloudClient({
+        serverUrl: 'http://hub.example:5337',
+        fetch: fn
+    });
+
+    await client.pleaseNotify({
+        protocol: 'http-post',
+        callback: { port: 9000, path: '/notify' },
+        feedUrl: 'https://feed.example/rss',
+        accept: 'xml'
+    });
+
+    assert.equal(calls[0].init.headers.Accept, 'application/xml');
+});
+
+test('pleaseNotify sends no Accept override when accept is not given', async() => {
+    const { fn, calls } = fakeFetch();
+    const client = createRssCloudClient({
+        serverUrl: 'http://hub.example:5337',
+        fetch: fn
+    });
+
+    await client.pleaseNotify({
+        protocol: 'http-post',
+        callback: { port: 9000, path: '/notify' },
+        feedUrl: 'https://feed.example/rss'
+    });
+
+    assert.equal(calls[0].init.headers.Accept, undefined);
+});
+
 test('pleaseNotify over xml-rpc sends the six params', async() => {
     const { fn, calls } = fakeFetch();
     const client = createRssCloudClient({

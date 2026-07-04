@@ -13,9 +13,10 @@ function asArray(value) {
 }
 
 // Find a rel="<rel>" link among a channel/feed's <atom:link>/<link>
-// children, however xml2js happened to collapse them.
+// children, however xml2js happened to collapse them. RFC 8288 §3.3:
+// relation types SHOULD be treated case-insensitively.
 function findRelInBodyLinks(links, rel) {
-    return asArray(links).find(link => link?.$?.rel === rel)?.$?.href;
+    return asArray(links).find(link => link?.$?.rel?.toLowerCase() === rel.toLowerCase())?.$?.href;
 }
 
 const SOURCE_CLOUD_NS = 'https://source.scripting.com/';
