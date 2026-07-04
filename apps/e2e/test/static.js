@@ -13,6 +13,7 @@ describe('Static Pages', function() {
     });
 
     for (const slug of [
+        'quick-start',
         'rsscloud-rest',
         'rsscloud-xml-rpc',
         'websub',

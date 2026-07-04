@@ -14,6 +14,8 @@ at once.
 
 ## Documentation
 
+- **[Quick Start](docs/quick-start.md)** — publishing a feed? Advertise this hub and
+  ping it when you update.
 - **[rssCloud over REST](docs/rsscloud-rest.md)** — `POST /pleaseNotify` and
   `POST /ping` as form posts.
 - **[rssCloud over XML-RPC](docs/rsscloud-xml-rpc.md)** — `rssCloud.hello`,
