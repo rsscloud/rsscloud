@@ -15,8 +15,7 @@
         "test:core": "turbo run test --filter=@rsscloud/core",
         "clean": "turbo run clean",
         "docker:build-push": "./scripts/docker-build-push.sh",
-        "docker:build-push-skip-quality": "./scripts/docker-build-push.sh --skip-quality",
-        "docker:dry-run": "./scripts/docker-build-push.sh --dry-run --skip-quality",
+        "docker:dry-run": "./scripts/docker-build-push.sh --dry-run",
         "prepare": "husky"
     },
     "packageManager": "pnpm@10.11.0",

@@ -5,20 +5,19 @@
 #   2. Edit DOMAIN and HUB_URL below to your public hostname.
 #   3. Deploy. Subscriptions + stats persist in the named volume `rsscloud-data`.
 #
-# The `rsscloud` service pulls the published image rather than building, so it
-# deploys without the source tree. To pin a release, replace `:latest` with a
-# version tag (e.g. andrewshell/rsscloud-server:4.0.0).
+# Both services pull published images from the GitHub Container Registry
+# rather than building, so this stack deploys without a checkout of the repo.
+# To pin a release, replace `:latest` with a version tag (e.g.
+# ghcr.io/rsscloud/server:4.0.0).
 #
-# The `client` service (the rssCloud/WebSub test harness, apps/client) has no
-# published image yet, so it builds from source instead — this stack must be
-# deployed from a checkout of the repo for that service to build. Point a
-# browser at it to test the paired hub, or edit its HUB_SERVER_URL/CLIENT_FETCH_ALLOW_CIDRS
-# to test a different one. Remove the `client` service entirely if you only
-# want the hub.
+# The `client` service is the rssCloud/WebSub test harness (apps/client).
+# Point a browser at it to test the paired hub, or edit its
+# HUB_SERVER_URL/CLIENT_FETCH_ALLOW_CIDRS to test a different one. Remove the
+# `client` service entirely if you only want the hub.
 
 services:
   rsscloud:
-    image: andrewshell/rsscloud-server:latest
+    image: ghcr.io/rsscloud/server:latest
     container_name: rsscloud-server
     restart: unless-stopped
     networks:
@@ -56,9 +55,7 @@ services:
       start_period: 10s
 
   client:
-    build:
-      context: ../..
-      dockerfile: apps/client/Dockerfile
+    image: ghcr.io/rsscloud/client:latest
     container_name: rsscloud-client
     restart: unless-stopped
     networks:

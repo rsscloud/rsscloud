@@ -24,6 +24,6 @@ A handful of server-internal helpers (RPC builders, dayjs wrapper, `init-subscri
 
 ## Releases
 
-Conventional Commits are enforced by commitlint (via husky). Pushes to `main` trigger [release-please](https://github.com/googleapis/release-please) which opens or updates a Release PR per tracked package (`apps/server`, `packages/core`, `packages/express`). The `node-workspace` plugin keeps internal `workspace:*` deps in lockstep, cascading a release to dependents when a dependency bumps (`core` → `express` → `server`). `apps/e2e` is private and not tracked. Merging the Release PR cuts the release and git tag.
+Conventional Commits are enforced by commitlint (via husky). Pushes to `main` trigger [release-please](https://github.com/googleapis/release-please) which opens or updates a Release PR per tracked package (`apps/server`, `apps/client`, `packages/xml-rpc`, `packages/core`, `packages/express`). The `node-workspace` plugin keeps internal `workspace:*` deps in lockstep, cascading a release to dependents when a dependency bumps (`core` → `express` → `server`; `core` → `client`). `apps/e2e` is private and not tracked. Merging the Release PR cuts the release and git tag.
 
 `fix:` → patch, `feat:` → minor, `feat!:` / `BREAKING CHANGE:` → major. Other types (`chore:`, `docs:`, `style:`, `refactor:`, `test:`, `ci:`, `build:`) don't trigger releases.

@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# Docker Build and Push Script for rsscloud-server
-# Builds and pushes the Docker image to andrewshell/rsscloud-server on Docker Hub
+# Docker Build and Push Script for rsscloud
+# Builds and pushes a multi-platform image to the GitHub Container Registry
+# (ghcr.io/rsscloud/<target>) for either the server or the client app.
 
 set -e  # Exit on any error
 
@@ -13,11 +14,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-DOCKER_REPO="andrewshell/rsscloud-server"
-DOCKERFILE_PATH="apps/server/Dockerfile"
-# The published version comes from the server package, not the private monorepo
-# root (which stays at 0.0.0).
-VERSION_PACKAGE_JSON="apps/server/package.json"
+REGISTRY="ghcr.io/rsscloud"
 
 # Helper functions
 log_info() {
@@ -36,40 +33,37 @@ log_error() {
     echo -e "${RED}❌ $1${NC}"
 }
 
+show_usage() {
+    echo "Usage: $0 <server|client> [OPTIONS] [CUSTOM_TAG]"
+    echo ""
+    echo "Options:"
+    echo "  --dry-run         Show what would be done without executing"
+    echo "  -h, --help        Show this help message"
+    echo ""
+    echo "Examples:"
+    echo "  $0 server                 # Build and push the server with version + latest tags"
+    echo "  $0 client beta            # Build and push the client with version + latest + beta tags"
+    echo "  $0 server --dry-run       # Show what the server build would do, without executing"
+    echo ""
+}
+
 # Parse command line arguments
-SKIP_QUALITY=false
+TARGET=""
 CUSTOM_TAG=""
 DRY_RUN=false
 
-# Check for help first
-if [[ "$1" == "-h" || "$1" == "--help" ]]; then
-    show_usage() {
-        echo "Usage: $0 [OPTIONS] [CUSTOM_TAG]"
-        echo ""
-        echo "Options:"
-        echo "  --skip-quality    Skip quality checks (typecheck, lint, unit tests)"
-        echo "  --dry-run         Show what would be done without executing"
-        echo "  -h, --help        Show this help message"
-        echo ""
-        echo "Examples:"
-        echo "  $0                        # Build and push with version + latest tags"
-        echo "  $0 beta                   # Build and push with version + latest + beta tags"
-        echo "  $0 --skip-quality         # Build and push without running quality checks"
-        echo "  $0 --skip-quality v1.2.3  # Build and push with custom tag, skip quality checks"
-        echo ""
-    }
-    show_usage
-    exit 0
-fi
-
 while [[ $# -gt 0 ]]; do
     case $1 in
-        --skip-quality)
-            SKIP_QUALITY=true
-            shift
+        -h|--help)
+            show_usage
+            exit 0
             ;;
         --dry-run)
             DRY_RUN=true
+            shift
+            ;;
+        server|client)
+            TARGET="$1"
             shift
             ;;
         *)
@@ -78,6 +72,19 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+if [ -z "$TARGET" ]; then
+    log_error "Missing target: specify 'server' or 'client'"
+    echo ""
+    show_usage
+    exit 1
+fi
+
+DOCKER_REPO="${REGISTRY}/${TARGET}"
+DOCKERFILE_PATH="apps/${TARGET}/Dockerfile"
+# The published version comes from the app's own package.json, not the
+# private monorepo root (which stays at 0.0.0).
+VERSION_PACKAGE_JSON="apps/${TARGET}/package.json"
 
 # Function to check if Docker is running
 check_docker() {
@@ -89,26 +96,21 @@ check_docker() {
     log_success "Docker is running"
 }
 
-# Function to check Docker Hub login
+# Function to check GitHub Container Registry login
 check_docker_login() {
-    log_info "Checking Docker Hub authentication..."
-    if ! docker info | grep -q "Username:"; then
-        log_warning "Not logged into Docker Hub. Attempting login..."
-        if ! docker login; then
-            log_error "Failed to login to Docker Hub. Please run 'docker login' manually."
+    log_info "Checking GitHub Container Registry authentication..."
+    if ! grep -q '"ghcr.io"' "$HOME/.docker/config.json" 2>/dev/null; then
+        log_warning "Not logged into ghcr.io. Attempting login..."
+        if ! docker login ghcr.io; then
+            log_error "Failed to login to ghcr.io. Please run 'docker login ghcr.io' manually."
             exit 1
         fi
     fi
-    log_success "Docker Hub authentication verified"
+    log_success "ghcr.io authentication verified"
 }
 
 # Function to run quality checks
 run_quality_checks() {
-    if [ "$SKIP_QUALITY" = true ]; then
-        log_warning "Skipping quality checks as requested"
-        return 0
-    fi
-
     log_info "Running quality checks..."
 
     log_info "Running TypeScript type checking..."
@@ -132,7 +134,7 @@ run_quality_checks() {
     log_success "All quality checks passed"
 }
 
-# Function to get version from the server package.json
+# Function to get version from the target app's package.json
 get_version() {
     node -p "require('./${VERSION_PACKAGE_JSON}').version"
 }
@@ -142,6 +144,7 @@ build_image() {
     local version=$(get_version)
 
     log_info "Building Docker image..."
+    log_info "Target: $TARGET"
     log_info "Version: $version"
 
     if [ "$DRY_RUN" = true ]; then
@@ -201,7 +204,7 @@ push_image() {
     fi
 
     # Multi-platform images are pushed during build step
-    log_success "Multi-platform images already pushed to Docker Hub during build"
+    log_success "Multi-platform images already pushed to ghcr.io"
 }
 
 
@@ -221,20 +224,26 @@ show_image_info() {
     fi
     echo ""
     echo "🚀 To run the image:"
-    echo "   docker run -d -p 5337:5337 \\"
-    echo "     -e DOMAIN=cloud.example.com \\"
-    echo "     -e HUB_URL=https://cloud.example.com/websub \\"
-    echo "     -v rsscloud-data:/app/apps/server/data \\"
-    echo "     ${DOCKER_REPO}:latest"
+    if [ "$TARGET" = "server" ]; then
+        echo "   docker run -d -p 5337:5337 \\"
+        echo "     -e DOMAIN=cloud.example.com \\"
+        echo "     -e HUB_URL=https://cloud.example.com/websub \\"
+        echo "     -v rsscloud-data:/app/apps/server/data \\"
+        echo "     ${DOCKER_REPO}:latest"
+    else
+        echo "   docker run -d -p 9000:9000 \\"
+        echo "     -e DOMAIN=cloud.example.com \\"
+        echo "     -e HUB_SERVER_URL=https://cloud.example.com/websub \\"
+        echo "     ${DOCKER_REPO}:latest"
+    fi
     echo ""
 }
 
 # Main execution
 main() {
-    echo "🐳 rsscloud-server Docker Build & Push Script"
-    echo "============================================="
+    echo "🐳 rsscloud Docker Build & Push Script"
+    echo "======================================="
     echo ""
-
 
     # Verify we're in the right directory
     if [ ! -f "package.json" ] || [ ! -f "$DOCKERFILE_PATH" ]; then

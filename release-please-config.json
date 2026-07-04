@@ -7,6 +7,11 @@
             "component": "server",
             "changelog-path": "CHANGELOG.md"
         },
+        "apps/client": {
+            "release-type": "node",
+            "component": "client",
+            "changelog-path": "CHANGELOG.md"
+        },
         "packages/xml-rpc": {
             "release-type": "node",
             "component": "xml-rpc",
