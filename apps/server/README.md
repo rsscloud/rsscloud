@@ -63,6 +63,28 @@ Migrate in two steps:
 
 Once on 3.0 you can decommission MongoDB.
 
+## Upgrading from 3.x to 4.0
+
+Version 4.0 restructures the project into a pnpm monorepo — the server itself moved
+from the repo root into `apps/server`. If you deployed 3.x by running `node app.js`
+from the repo root with a root-level `.env` and `./data` directory, no migration step
+is required: a compatibility `app.js` at the repo root loads the root `.env` (if
+present), points `DATA_FILE_PATH`/`STATS_FILE_PATH` at the root `./data` directory (if
+present), then hands off to the real server in `apps/server`. Your existing
+subscriptions and stats keep working untouched — the legacy data file is only ever
+read, never rewritten (a new `.v2.json` sibling holds every write going forward).
+
+Pull the new code, run `pnpm install` (see [How to install](#how-to-install)), and
+start it exactly as before:
+
+```bash
+node app.js
+```
+
+There's no rush to change anything once it's running, but the supported path going
+forward is `apps/server`: move `.env` and `data/` into `apps/server/`, and start it
+with `pnpm start` instead of `node app.js` from the repo root.
+
 ## How to test
 
 The API is tested using docker containers. I've only tested on MacOS so if you have experience testing on other platforms I'd love having these notes updated for those platforms.
