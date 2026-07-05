@@ -46,7 +46,7 @@ hear from **you** that something changed before it notifies anyone.
   every update, so it happens without you in the loop:
 
     ```bash
-    curl -X POST https://rpc.rsscloud.io/ping -d url=https://feed.example/rss
+    curl -X POST https://rpc.rsscloud.io/ping --data-urlencode url=https://feed.example/rss
     ```
 
 See [rssCloud over REST](rsscloud-rest.md#post-ping) for the full request/response
