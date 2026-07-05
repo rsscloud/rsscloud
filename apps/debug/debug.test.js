@@ -168,6 +168,19 @@ test('GET /s/:id embeds a socklog-viewer pointed at this session\'s WS log feed'
     );
 });
 
+test('GET /s/:id uses wss:// for the WS log feed when behind an HTTPS-terminating proxy', async() => {
+    const app = createApp();
+
+    const res = await request(app)
+        .get('/s/proxied-https-session')
+        .set('X-Forwarded-Proto', 'https');
+
+    assert.match(
+        res.text,
+        /<socklog-viewer[^>]*url=['"]wss:\/\/[^'"]*\/s\/proxied-https-session\/logs['"]/
+    );
+});
+
 test('GET /s/:id renders the session id on <body> and a settings gear icon link', async() => {
     const app = createApp();
 

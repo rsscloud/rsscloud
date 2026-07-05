@@ -431,6 +431,8 @@ function createApp({
 
     const app = express();
 
+    app.set('trust proxy', true);
+
     morgan.format('mydate', () => {
         return new Date()
             .toLocaleTimeString('en-US', {
