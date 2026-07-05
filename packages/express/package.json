@@ -1,6 +1,6 @@
 {
     "name": "@rsscloud/express",
-    "version": "0.0.0",
+    "version": "1.0.0",
     "description": "Express middleware for the rssCloud notification protocol — pleaseNotify, ping, and RPC2 front doors",
     "license": "MIT",
     "author": "Andrew Shell <andrew@andrewshell.org>",

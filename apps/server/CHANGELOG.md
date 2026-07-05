@@ -1,5 +1,52 @@
 # Changelog
 
+## [4.0.0](https://github.com/rsscloud/rsscloud-server/compare/server-v3.0.0...server-v4.0.0) (2026-07-05)
+
+
+### ⚠ BREAKING CHANGES
+
+* **server:** apps/server no longer exposes the mocha test suite or its devDependencies. Anything that ran 'pnpm --filter @rsscloud/server run test' (none externally) must switch to 'pnpm --filter @rsscloud/e2e run e2e-test' inside the docker container, or 'pnpm test' at the root.
+* project restructured as pnpm monorepo
+
+### Features
+
+* add realtime log page and improved test infrastructure ([0e5ac48](https://github.com/rsscloud/rsscloud-server/commit/0e5ac485b9004fc20eab6ae1f56430c43b1b50a6))
+* convert to pnpm monorepo with server app ([a4e3d41](https://github.com/rsscloud/rsscloud-server/commit/a4e3d412d855cb26631accfc65898383eb7ea094))
+* distribute feed content to WebSub subscribers on fan-out ([9615369](https://github.com/rsscloud/rsscloud-server/commit/9615369ce4bd61cc5f6b168cb634a8517d8d0409))
+* honor WebSub lease requests, clamped to configured bounds ([7328aef](https://github.com/rsscloud/rsscloud-server/commit/7328aefdffc224eb0c117de55c2a980872bad04b))
+* **server:** add a Quick Start doc for feed publishers ([5255512](https://github.com/rsscloud/rsscloud-server/commit/5255512d50b81c9b4b7294f5b59889a0dc630a87))
+* **server:** add a root-level compatibility entry point for 3.x upgrades ([acd9593](https://github.com/rsscloud/rsscloud-server/commit/acd95938333815ab64475e23be23ba4f650ea265))
+* **server:** consolidate home page navigation into one page list ([782544e](https://github.com/rsscloud/rsscloud-server/commit/782544e93a70241369005e9d09df1aa17921ce93))
+* **server:** mount the WebSub hub front door ([6f57343](https://github.com/rsscloud/rsscloud-server/commit/6f573432e6be554e19b810bb030ffe66975beb3b))
+* **server:** screen outbound fetches with the SSRF egress guard ([cc81ebe](https://github.com/rsscloud/rsscloud-server/commit/cc81ebe8a22e5e99359f5cf1a414e529e3b66033))
+* sign WebSub deliveries with X-Hub-Signature ([7f3349e](https://github.com/rsscloud/rsscloud-server/commit/7f3349e4dc26a0df882c358061e1364e74b7529b))
+
+
+### Bug Fixes
+
+* **core:** preserve caller abort signal in safeFetch timeout path ([2ae15ef](https://github.com/rsscloud/rsscloud-server/commit/2ae15efeee996a4c6c2094ba65bf7ba09141ad4b))
+* **server:** add missing DOCTYPE to HTML views ([fa9bb44](https://github.com/rsscloud/rsscloud-server/commit/fa9bb443f25de88fdbcb8901516ea1c7a711c972))
+* **server:** build @rsscloud/xml-rpc in the Docker image ([2321097](https://github.com/rsscloud/rsscloud-server/commit/232109723731553903f771c761bffcb1289de548))
+* **server:** normalize WEBSUB_PATH to a leading slash ([090db46](https://github.com/rsscloud/rsscloud-server/commit/090db46654ac7381ce0af37216b28a798ba51d31))
+* **server:** repair broken /viewLog bootstrap script ([9466543](https://github.com/rsscloud/rsscloud-server/commit/9466543c7aaabb28dbb5d99bf4837577d242b4b7))
+* **server:** restore /docs and /LICENSE.md routes after monorepo split ([8b127de](https://github.com/rsscloud/rsscloud-server/commit/8b127ded6e45d33867b5a1d92f2619bd6d973fb1))
+* **server:** scope the SSRF allowlist to topic fetch, keep callbacks strict ([71241cb](https://github.com/rsscloud/rsscloud-server/commit/71241cbb8e1d269055eeeb1ecbb26f4479af28ac))
+* **server:** stop the stats label hardcoding "7 days" ([26e1d50](https://github.com/rsscloud/rsscloud-server/commit/26e1d5026330aaac3f1211983512210a5ef88815))
+* **server:** url-encode the ping curl example in the Quick Start doc ([f0cfb13](https://github.com/rsscloud/rsscloud-server/commit/f0cfb131b3d00d1fa756573e5a76ae8e94144148))
+
+
+### Code Refactoring
+
+* **server:** extract e2e test suite into apps/e2e ([7013512](https://github.com/rsscloud/rsscloud-server/commit/701351285a586db003d25388e7ba664f626e3c1c))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @rsscloud/core bumped to 1.0.0
+    * @rsscloud/express bumped to 1.0.0
+
 ## [3.0.0](https://github.com/rsscloud/rsscloud-server/compare/v2.4.0...v3.0.0) (2026-05-15)
 
 ### ⚠ BREAKING CHANGES

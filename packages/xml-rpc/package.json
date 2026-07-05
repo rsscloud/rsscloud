@@ -1,6 +1,6 @@
 {
     "name": "@rsscloud/xml-rpc",
-    "version": "0.0.0",
+    "version": "1.0.0",
     "description": "Generic XML-RPC codec for the rssCloud packages — parse and build methodCall/methodResponse documents",
     "license": "MIT",
     "author": "Andrew Shell <andrew@andrewshell.org>",

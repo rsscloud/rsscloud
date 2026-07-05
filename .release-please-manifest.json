@@ -1,7 +1,7 @@
 {
-    "apps/server": "3.0.0",
-    "apps/debug": "0.0.0",
-    "packages/xml-rpc": "0.0.0",
-    "packages/core": "0.0.0",
-    "packages/express": "0.0.0"
+    "apps/server": "4.0.0",
+    "apps/debug": "1.0.0",
+    "packages/xml-rpc": "1.0.0",
+    "packages/core": "1.0.0",
+    "packages/express": "1.0.0"
 }
