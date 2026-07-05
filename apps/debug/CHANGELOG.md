@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/rsscloud/rsscloud-server/compare/debug-v1.0.0...debug-v1.0.1) (2026-07-05)
+
+
+### Bug Fixes
+
+* **debug:** trust the proxy so wss:// is used behind HTTPS termination ([6090d6a](https://github.com/rsscloud/rsscloud-server/commit/6090d6afb1f8995885b8a69d49dc59f2be81e8ad))
+
 ## 1.0.0 (2026-07-05)
 
 
