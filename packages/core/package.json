@@ -1,6 +1,6 @@
 {
     "name": "@rsscloud/core",
-    "version": "0.0.0",
+    "version": "1.0.0",
     "description": "Core primitives for rssCloud — subscriptions, notifications, and feed processing",
     "license": "MIT",
     "author": "Andrew Shell <andrew@andrewshell.org>",
