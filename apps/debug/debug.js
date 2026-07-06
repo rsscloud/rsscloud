@@ -147,6 +147,15 @@ const debugStyles = `
             flex: 1;
             min-width: 220px;
         }
+        /* style.css's label { display: block } stretches these checkbox
+           labels across the whole fieldset, so clicking far past the
+           "Disabled" text still toggles the checkbox. Shrink to content. */
+        .checkbox-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            width: auto;
+        }
         .input-with-button {
             display: flex;
             gap: 10px;
@@ -307,7 +316,7 @@ function renderSettingsPage(sessionId, settings, { error } = {}) {
 
         <fieldset id="rsscloudFields">
             <legend>rssCloud</legend>
-            <label>
+            <label class="checkbox-label">
                 <input type="checkbox" id="rssCloudDisabled" name="rssCloudDisabled" ${settings.rssCloud.disabled ? 'checked' : ''}>
                 Disabled
             </label>
@@ -348,7 +357,7 @@ function renderSettingsPage(sessionId, settings, { error } = {}) {
 
         <fieldset id="webSubFields">
             <legend>WebSub</legend>
-            <label>
+            <label class="checkbox-label">
                 <input type="checkbox" id="webSubDisabled" name="webSubDisabled" ${settings.webSub.disabled ? 'checked' : ''}>
                 Disabled
             </label>
