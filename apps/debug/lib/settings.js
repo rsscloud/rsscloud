@@ -1,9 +1,11 @@
+const { URL } = require('url');
+
 const SELF_HOSTED_FEED_NAME = 'rss.xml';
 
-function computeDefaultSettings({ sessionId, domain, port, hubServerUrl }) {
+function computeDefaultSettings({ sessionId, publicUrl, hubServerUrl }) {
     const hub = hubServerUrl.replace(/\/$/, '');
     return {
-        feedUrl: `http://${domain}:${port}/s/${sessionId}/${SELF_HOSTED_FEED_NAME}`,
+        feedUrl: `${publicUrl}/s/${sessionId}/${SELF_HOSTED_FEED_NAME}`,
         rssCloud: {
             disabled: false,
             protocol: 'http-post',
@@ -21,10 +23,15 @@ function computeDefaultSettings({ sessionId, domain, port, hubServerUrl }) {
     };
 }
 
-function selfHostedPrefixes({ domain, port, sessionId }) {
+// Match either scheme against publicUrl's own host — a feed URL typed or
+// discovered with the other scheme against the same host:port should still
+// be recognized as self-hosted.
+function selfHostedPrefixes({ publicUrl, sessionId }) {
+    const url = new URL(publicUrl);
+    const otherScheme = url.protocol === 'https:' ? 'http' : 'https';
     return [
-        `http://${domain}:${port}/s/${sessionId}/`,
-        `https://${domain}:${port}/s/${sessionId}/`
+        `${url.protocol}//${url.host}/s/${sessionId}/`,
+        `${otherScheme}://${url.host}/s/${sessionId}/`
     ];
 }
 

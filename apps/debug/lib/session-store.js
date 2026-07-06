@@ -17,8 +17,7 @@ function createSessionStore({
     idGenerator = randomUUID,
     buildDefaultSettings = id => computeDefaultSettings({
         sessionId: id,
-        domain: config.domain,
-        port: config.port,
+        publicUrl: config.publicUrl,
         hubServerUrl: config.hubServerUrl
     })
 } = {}) {

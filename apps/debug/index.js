@@ -11,9 +11,7 @@ const app = createApp({ sessionStore });
 
 const server = app
     .listen(config.port, () => {
-        console.log(
-            `Listening at http://${config.domain}:${server.address().port}`
-        );
+        console.log(`Listening on port ${server.address().port} — public URL: ${config.publicUrl}`);
     })
     .on('error', error => {
         switch (error.code) {

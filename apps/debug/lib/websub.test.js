@@ -119,6 +119,34 @@ test('unsubscribe posts hub.mode=unsubscribe with callback and topic', async() =
     assert.equal(body.get('hub.verify'), 'async');
 });
 
+test('subscribe reports the exact outgoing request via onRequest before the fetch resolves', async() => {
+    const { fn, calls } = fakeFetch();
+    const seen = [];
+    const client = createWebSubClient({
+        serverUrl: 'http://hub.example:5337',
+        fetch: fn,
+        onRequest: request => seen.push(request)
+    });
+
+    await client.subscribe({
+        callbackUrl: 'http://sub.example:9000/websub-callback',
+        topicUrl: 'https://feed.example/rss',
+        secret: 's3cr3t'
+    });
+
+    assert.equal(seen.length, 1);
+    assert.equal(seen[0].method, 'POST');
+    assert.equal(seen[0].url, 'http://hub.example:5337/websub');
+    assert.equal(
+        seen[0].headers['Content-Type'],
+        'application/x-www-form-urlencoded'
+    );
+    // The reported body is exactly what the fetch call actually sent — same
+    // string, not a reconstruction — so the log can never drift from reality.
+    assert.equal(seen[0].body, calls[0].init.body);
+    assert.match(seen[0].body, /hub\.secret=s3cr3t/);
+});
+
 test('targets a configurable hub path', async() => {
     const { fn, calls } = fakeFetch();
     const client = createWebSubClient({

@@ -69,6 +69,12 @@ services:
       # own callbacks and test feeds.
       DOMAIN: cloud.example.com
       # PORT: "9000"
+      # If you put a reverse proxy in front of this service instead of
+      # exposing 9000 directly (e.g. terminating TLS on 443), set PUBLIC_URL
+      # to the proxy's public URL — otherwise the internal PORT above leaks
+      # into the WebSub/rssCloud callback URLs this harness sends to real
+      # hubs, which they won't be able to reach:
+      #   PUBLIC_URL: "https://cloud.example.com"
       # Reach the sibling `rsscloud` service by its Compose service name —
       # override at runtime (the UI's server/hub override field) to test a
       # different hub instead.
