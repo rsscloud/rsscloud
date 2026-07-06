@@ -681,6 +681,29 @@ test('subscribing logs an outgoing request entry and a paired response entry', a
     await harness.close();
 });
 
+test('subscribing logs the real outgoing wire body, not the internal action params', async() => {
+    const sessionStore = createSessionStore();
+    const app = createApp({ fetch: fakeFetch(200, 'thanks'), sessionStore });
+    const sessionId = 'log-wire-session';
+    const harness = await startTestServer(app);
+    await harness.request.get(`/s/${sessionId}`);
+    const { ws, received } = await harness.openLogSocket(sessionId);
+
+    await harness.request.post(`/s/${sessionId}/actions/rsscloud-subscribe`).send({});
+    await waitUntil(() => received.length === 2);
+
+    const [requestEntry] = received;
+    // The real rssCloud pleaseNotify wire form — port/path/protocol/url1 —
+    // not the internal { action, callback: {...}, feedUrl } shape.
+    assert.equal(requestEntry.body.protocol, 'http-post');
+    assert.equal(requestEntry.body.url1, sessionStore.get(sessionId).settings.feedUrl);
+    assert.equal(requestEntry.body.path, `/s/${sessionId}/notify`);
+    assert.equal(requestEntry.body.action, undefined);
+
+    ws.close();
+    await harness.close();
+});
+
 test('pinging logs an outgoing request entry and a paired response entry', async() => {
     const sessionStore = createSessionStore();
     const app = createApp({ fetch: fakeFetch(200, 'ok'), sessionStore });
@@ -743,7 +766,10 @@ test('websub-subscribe redacts the secret in the logged request, but sends it ve
     const requestEntry = received.find(
         e => e.direction === 'outgoing' && e.phase === 'request'
     );
-    assert.notEqual(requestEntry.body.secret, 's3cr3t');
+    assert.equal(requestEntry.body['hub.secret'], '(redacted)');
+    // Every other real hub.* field is still visible in the log — only the
+    // secret is redacted.
+    assert.equal(requestEntry.body['hub.mode'], 'subscribe');
 
     const body = new URLSearchParams(calls[0].init.body);
     assert.equal(body.get('hub.secret'), 's3cr3t');

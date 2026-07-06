@@ -29,11 +29,21 @@ function getCidrListConfig(key) {
         .filter(Boolean);
 }
 
+const domain = getConfig('DOMAIN', 'localhost');
+const port = getNumericConfig('PORT', 9000);
+
 module.exports = {
     appName: 'rssCloudDebug',
     appVersion: packageJson.version,
-    domain: getConfig('DOMAIN', 'localhost'),
-    port: getNumericConfig('PORT', 9000),
+    domain,
+    port,
+    // The externally-reachable base URL this harness advertises for its own
+    // WebSub callback, rssCloud callback, and self-hosted feed links — distinct
+    // from DOMAIN/PORT above (the internal listen address), since a reverse
+    // proxy in front of a public deployment typically terminates TLS on a
+    // different port than the one this process actually binds. Defaults to
+    // DOMAIN/PORT for a direct, non-proxied local dev setup.
+    publicUrl: getConfig('PUBLIC_URL', `http://${domain}:${port}`).replace(/\/$/, ''),
     hubServerUrl: getConfig('HUB_SERVER_URL', 'http://localhost:5337'),
     requestTimeout: getNumericConfig('REQUEST_TIMEOUT', 4000),
     debugFetchAllowCidrs: getCidrListConfig('DEBUG_FETCH_ALLOW_CIDRS'),

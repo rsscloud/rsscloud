@@ -52,13 +52,25 @@ function acceptHeader(accept) {
 // passes one.
 function createRssCloudClient(options) {
     const doFetch = options.fetch ?? fetch;
+    const onRequest = options.onRequest;
     const base = options.serverUrl ? options.serverUrl.replace(/\/$/, '') : undefined;
 
+    // Reports the exact request about to go out (method/url/headers/body) to
+    // onRequest, synchronously and before the fetch resolves — so a caller
+    // logging outgoing traffic observes the real bytes sent, never a
+    // separately-reconstructed approximation that could drift from it.
     async function send(url, contentType, body, extraHeaders) {
-        const res = await doFetch(url, {
+        const request = {
             method: 'POST',
+            url,
             headers: { 'Content-Type': contentType, ...extraHeaders },
             body
+        };
+        onRequest?.(request);
+        const res = await doFetch(request.url, {
+            method: request.method,
+            headers: request.headers,
+            body: request.body
         });
         return { status: res.status, body: await res.text() };
     }

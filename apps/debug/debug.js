@@ -33,6 +33,16 @@ const bodyParser = require('body-parser'),
 // Derive a self-served test feed's <cloud> element from a session's own
 // rssCloud settings — undefined (omitted entirely) when rssCloud is
 // disabled. The RPC2 endpoint doubles as both ping and subscribe front door.
+// Split a parsed URL into rssCloud's wire {domain, port} shape — hostname,
+// and an explicit port or the scheme's conventional one (80/443) when
+// omitted (a bare hostname URL still needs a real port on the wire).
+function hostPortFromUrl(target) {
+    return {
+        domain: target.hostname,
+        port: Number(target.port) || (target.protocol === 'https:' ? 443 : 80)
+    };
+}
+
 function cloudFromSettings(rssCloud) {
     if (rssCloud.disabled) {
         return undefined;
@@ -40,8 +50,7 @@ function cloudFromSettings(rssCloud) {
     const useXmlRpc = rssCloud.protocol === 'xml-rpc';
     const target = new URL(useXmlRpc ? rssCloud.rpcUrl : rssCloud.subscribeUrl);
     return {
-        domain: target.hostname,
-        port: Number(target.port) || (target.protocol === 'https:' ? 443 : 80),
+        ...hostPortFromUrl(target),
         path: target.pathname,
         registerProcedure: useXmlRpc ? 'rssCloud.pleaseNotify' : '',
         protocol: rssCloud.protocol
@@ -66,7 +75,7 @@ function isValidHttpUrl(value) {
 // This session's callback URL the hub notifies for WebSub content
 // distribution and intent verification.
 function webSubCallbackUrl(sessionId) {
-    return `http://${config.domain}:${config.port}/s/${sessionId}/websub-callback`;
+    return `${config.publicUrl}/s/${sessionId}/websub-callback`;
 }
 
 // Pull the topic URL out of a delivery's Link header (`<url>; rel="self"`).
@@ -291,7 +300,7 @@ function renderPage(sessionId, wsUrl, settings, { isSelfHosted, showPing, lastUp
 // Protocol-dependent field visibility is toggled client-side (public/settings.js)
 // since it must react live to the form's own dropdown/checkbox changes.
 function renderSettingsPage(sessionId, settings, { error } = {}) {
-    const ctx = { domain: config.domain, port: config.port, sessionId };
+    const ctx = { publicUrl: config.publicUrl, sessionId };
     const context = {
         selfHostedPrefixes: selfHostedPrefixes(ctx),
         defaultSettings: computeDefaultSettings({ ...ctx, hubServerUrl: config.hubServerUrl })
@@ -541,7 +550,7 @@ function createApp({
         const wsProtocol = req.protocol === 'https' ? 'wss' : 'ws';
         const wsUrl = `${wsProtocol}://${req.get('host')}/s/${sessionId}/logs`;
         const { settings } = req.session;
-        const ctx = { domain: config.domain, port: config.port, sessionId };
+        const ctx = { publicUrl: config.publicUrl, sessionId };
         const isSelfHosted = isSelfHostedFeedUrl(settings.feedUrl, ctx);
         const showPing = settings.rssCloud.protocol === 'xml-rpc' || Boolean(settings.rssCloud.pingUrl);
         const lastUpdatedAt = isSelfHosted
@@ -627,18 +636,44 @@ function createApp({
         }
     });
 
-    // Shared by every settings-driven action below: broadcasts the
-    // request/response pair around `call()`, and never mutates session state
-    // (via `onSuccess`) on the strength of a request that might still fail.
-    function logAndRespondAction(sessionId, res, action, targetUrl, requestBody, call, onSuccess) {
-        const logId = crypto.randomUUID();
-        broadcastOutgoingRequest(sessionId, {
-            id: logId,
-            timestamp: new Date().toISOString(),
-            method: 'POST',
-            url: targetUrl,
-            body: { action, ...requestBody }
-        });
+    // A urlencoded wire body is logged as a plain object (matching how the
+    // incoming-request logging middleware already logs req.body); an XML-RPC
+    // body is already human-readable, so it's logged as-is.
+    function parseLoggedBody(headers, body) {
+        if (headers['Content-Type'] === 'application/x-www-form-urlencoded') {
+            return Object.fromEntries(new URLSearchParams(body));
+        }
+        return body;
+    }
+
+    // The client's onRequest hook fires with the real request (method/url/
+    // headers/body) synchronously, before the fetch is dispatched — logging
+    // that directly means the traffic log can never drift from what's
+    // actually sent. `redact` optionally scrubs sensitive fields from the
+    // logged copy only (the real request, already captured by the client,
+    // is unaffected).
+    function onOutgoingRequest(sessionId, logId, redact) {
+        return request => {
+            const body = parseLoggedBody(request.headers, request.body);
+            if (redact && body && typeof body === 'object') {
+                redact(body);
+            }
+            broadcastOutgoingRequest(sessionId, {
+                id: logId,
+                timestamp: new Date().toISOString(),
+                method: request.method,
+                url: request.url,
+                body
+            });
+        };
+    }
+
+    // Shared by every settings-driven action below: broadcasts the response
+    // half of the request/response pair around `call()` (the request half is
+    // already broadcast by the client's onRequest hook — see above), and
+    // never mutates session state (via `onSuccess`) on the strength of a
+    // request that might still fail.
+    function logAndRespondAction(sessionId, res, logId, call, onSuccess) {
         return call()
             .then(result => {
                 onSuccess?.(result);
@@ -682,14 +717,17 @@ function createApp({
 
         const useXmlRpc = protocol === 'xml-rpc';
         const targetUrl = useXmlRpc ? rpcUrl : subscribeUrl;
-        const rssCloudClient = createRssCloudClient({ fetch });
+        const logId = crypto.randomUUID();
+        const rssCloudClient = createRssCloudClient({
+            fetch,
+            onRequest: onOutgoingRequest(sessionId, logId)
+        });
         const subscribeParams = {
             url: targetUrl,
             protocol,
             accept: useXmlRpc ? undefined : accepts,
             callback: {
-                domain: config.domain,
-                port: config.port,
+                ...hostPortFromUrl(new URL(config.publicUrl)),
                 path: useXmlRpc
                     ? `/s/${sessionId}/RPC2`
                     : `/s/${sessionId}/notify`
@@ -700,9 +738,7 @@ function createApp({
         logAndRespondAction(
             sessionId,
             res,
-            'rsscloud-subscribe',
-            targetUrl,
-            subscribeParams,
+            logId,
             () => rssCloudClient.pleaseNotify(subscribeParams)
         );
     });
@@ -727,7 +763,11 @@ function createApp({
         }
 
         const targetUrl = useXmlRpc ? rpcUrl : pingUrl;
-        const rssCloudClient = createRssCloudClient({ fetch });
+        const logId = crypto.randomUUID();
+        const rssCloudClient = createRssCloudClient({
+            fetch,
+            onRequest: onOutgoingRequest(sessionId, logId)
+        });
         const pingParams = {
             url: targetUrl,
             feedUrl: settings.feedUrl,
@@ -738,9 +778,7 @@ function createApp({
         logAndRespondAction(
             sessionId,
             res,
-            'rsscloud-ping',
-            targetUrl,
-            pingParams,
+            logId,
             () => rssCloudClient.ping(pingParams)
         );
     });
@@ -757,16 +795,25 @@ function createApp({
         }
 
         const { hubUrl: targetUrl, leaseSeconds, secret } = settings.webSub;
-        const hub = createWebSubClient({ serverUrl: targetUrl, path: '', fetch });
+        const logId = crypto.randomUUID();
+        const hub = createWebSubClient({
+            serverUrl: targetUrl,
+            path: '',
+            fetch,
+            // Redact the secret in the logged/broadcast copy only — it's
+            // still sent verbatim to the hub below, just never echoed into
+            // the log.
+            onRequest: onOutgoingRequest(sessionId, logId, body => {
+                if (body['hub.secret']) {
+                    body['hub.secret'] = '(redacted)';
+                }
+            })
+        });
 
         logAndRespondAction(
             sessionId,
             res,
-            'websub-subscribe',
-            targetUrl,
-            // Redact the secret in the logged/broadcast copy — it's still
-            // sent verbatim to the hub below, just never echoed into the log.
-            { topicUrl: feedUrl, leaseSeconds, secret: secret ? '(redacted)' : undefined },
+            logId,
             () => hub.subscribe({
                 callbackUrl: webSubCallbackUrl(sessionId),
                 topicUrl: feedUrl,
@@ -795,14 +842,18 @@ function createApp({
         }
 
         const targetUrl = settings.webSub.hubUrl;
-        const hub = createWebSubClient({ serverUrl: targetUrl, path: '', fetch });
+        const logId = crypto.randomUUID();
+        const hub = createWebSubClient({
+            serverUrl: targetUrl,
+            path: '',
+            fetch,
+            onRequest: onOutgoingRequest(sessionId, logId)
+        });
 
         logAndRespondAction(
             sessionId,
             res,
-            'websub-unsubscribe',
-            targetUrl,
-            { topicUrl: feedUrl },
+            logId,
             () => hub.unsubscribe({
                 callbackUrl: webSubCallbackUrl(sessionId),
                 topicUrl: feedUrl
@@ -827,14 +878,18 @@ function createApp({
         }
 
         const targetUrl = settings.webSub.hubUrl;
-        const hub = createWebSubClient({ serverUrl: targetUrl, path: '', fetch });
+        const logId = crypto.randomUUID();
+        const hub = createWebSubClient({
+            serverUrl: targetUrl,
+            path: '',
+            fetch,
+            onRequest: onOutgoingRequest(sessionId, logId)
+        });
 
         logAndRespondAction(
             sessionId,
             res,
-            'websub-publish',
-            targetUrl,
-            { topicUrl: feedUrl },
+            logId,
             () => hub.publish({ topicUrl: feedUrl })
         );
     });
@@ -845,7 +900,7 @@ function createApp({
     sessionRouter.post('/actions/update-feed', ensureSession, (req, res) => {
         const sessionId = req.params.sessionId;
         const { settings } = req.session;
-        const ctx = { domain: config.domain, port: config.port, sessionId };
+        const ctx = { publicUrl: config.publicUrl, sessionId };
 
         if (!isSelfHostedFeedUrl(settings.feedUrl, ctx)) {
             res.json({ error: 'feed is not self-hosted' });
@@ -922,7 +977,7 @@ function createApp({
         const items = req.session.feedItems[feedName] || [
             { title: 'initialized', timestamp: new Date() }
         ];
-        const feedUrl = `http://${config.domain}:${config.port}/s/${sessionId}/${feedName}`;
+        const feedUrl = `${config.publicUrl}/s/${sessionId}/${feedName}`;
         const hub = settings.webSub.disabled ? undefined : settings.webSub.hubUrl;
 
         const rssXml = renderCloudFeed({

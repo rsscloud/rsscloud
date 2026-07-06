@@ -6,14 +6,26 @@ const FORM_TYPE = 'application/x-www-form-urlencoded';
 // without throwing on a non-2xx — inspect `status` yourself.
 function createWebSubClient(options) {
     const doFetch = options.fetch ?? fetch;
+    const onRequest = options.onRequest;
     const base = options.serverUrl.replace(/\/$/, '');
     const path = options.path ?? '/websub';
 
+    // Reports the exact request about to go out (method/url/headers/body) to
+    // onRequest, synchronously and before the fetch resolves — so a caller
+    // logging outgoing traffic observes the real bytes sent, never a
+    // separately-reconstructed approximation that could drift from it.
     async function send(form) {
-        const res = await doFetch(`${base}${path}`, {
+        const request = {
             method: 'POST',
+            url: `${base}${path}`,
             headers: { 'Content-Type': FORM_TYPE },
             body: form.toString()
+        };
+        onRequest?.(request);
+        const res = await doFetch(request.url, {
+            method: request.method,
+            headers: request.headers,
+            body: request.body
         });
         return { status: res.status, body: await res.text() };
     }

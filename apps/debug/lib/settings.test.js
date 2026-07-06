@@ -8,22 +8,30 @@ const {
     applyDiscoveryToSettings
 } = require('./settings');
 
-test('computeDefaultSettings builds the self-hosted feed URL from domain/port/session', () => {
+test('computeDefaultSettings builds the self-hosted feed URL from publicUrl/session', () => {
     const settings = computeDefaultSettings({
         sessionId: 'abc-123',
-        domain: 'localhost',
-        port: 9000,
+        publicUrl: 'http://localhost:9000',
         hubServerUrl: 'http://localhost:5337'
     });
 
     assert.equal(settings.feedUrl, 'http://localhost:9000/s/abc-123/rss.xml');
 });
 
+test('computeDefaultSettings builds the self-hosted feed URL using publicUrl\'s own scheme, not a hardcoded http', () => {
+    const settings = computeDefaultSettings({
+        sessionId: 'abc-123',
+        publicUrl: 'https://debug.rsscloud.io',
+        hubServerUrl: 'http://localhost:5337'
+    });
+
+    assert.equal(settings.feedUrl, 'https://debug.rsscloud.io/s/abc-123/rss.xml');
+});
+
 test('computeDefaultSettings defaults rssCloud to http-post against the configured hub', () => {
     const settings = computeDefaultSettings({
         sessionId: 'abc-123',
-        domain: 'localhost',
-        port: 9000,
+        publicUrl: 'http://localhost:9000',
         hubServerUrl: 'http://localhost:5337'
     });
 
@@ -40,8 +48,7 @@ test('computeDefaultSettings defaults rssCloud to http-post against the configur
 test('computeDefaultSettings defaults webSub to enabled with a blank lease/secret', () => {
     const settings = computeDefaultSettings({
         sessionId: 'abc-123',
-        domain: 'localhost',
-        port: 9000,
+        publicUrl: 'http://localhost:9000',
         hubServerUrl: 'http://localhost:5337'
     });
 
@@ -56,18 +63,16 @@ test('computeDefaultSettings defaults webSub to enabled with a blank lease/secre
 test('computeDefaultSettings strips a trailing slash from the hub server URL', () => {
     const settings = computeDefaultSettings({
         sessionId: 'abc-123',
-        domain: 'localhost',
-        port: 9000,
+        publicUrl: 'http://localhost:9000',
         hubServerUrl: 'http://localhost:5337/'
     });
 
     assert.equal(settings.rssCloud.pingUrl, 'http://localhost:5337/ping');
 });
 
-test('selfHostedPrefixes lists the http and https prefixes for this session', () => {
+test('selfHostedPrefixes lists both scheme prefixes for this session, using publicUrl\'s host', () => {
     const prefixes = selfHostedPrefixes({
-        domain: 'localhost',
-        port: 9000,
+        publicUrl: 'http://localhost:9000',
         sessionId: 'abc-123'
     });
 
@@ -77,7 +82,19 @@ test('selfHostedPrefixes lists the http and https prefixes for this session', ()
     ]);
 });
 
-const ctx = { domain: 'localhost', port: 9000, sessionId: 'abc-123' };
+test('selfHostedPrefixes derives both scheme prefixes from an https publicUrl, still matching an http-typed feed URL', () => {
+    const prefixes = selfHostedPrefixes({
+        publicUrl: 'https://debug.rsscloud.io',
+        sessionId: 'abc-123'
+    });
+
+    assert.deepEqual(prefixes, [
+        'https://debug.rsscloud.io/s/abc-123/',
+        'http://debug.rsscloud.io/s/abc-123/'
+    ]);
+});
+
+const ctx = { publicUrl: 'http://localhost:9000', sessionId: 'abc-123' };
 
 test('feedNameFromSelfHostedUrl extracts the feed name from a self-hosted URL', () => {
     const name = feedNameFromSelfHostedUrl(
@@ -114,8 +131,7 @@ test('isSelfHostedFeedUrl is false for an external feed URL', () => {
 function baseSettings() {
     return computeDefaultSettings({
         sessionId: 'abc-123',
-        domain: 'localhost',
-        port: 9000,
+        publicUrl: 'http://localhost:9000',
         hubServerUrl: 'http://localhost:5337'
     });
 }

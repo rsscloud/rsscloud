@@ -253,6 +253,51 @@ test('pleaseNotify over xml-rpc sends an empty domain when none is given', async
     assert.equal(call.params[5], '');
 });
 
+test('pleaseNotify reports the exact outgoing request via onRequest before the fetch resolves', async() => {
+    const { fn, calls } = fakeFetch();
+    const seen = [];
+    const client = createRssCloudClient({
+        serverUrl: 'http://hub.example:5337',
+        fetch: fn,
+        onRequest: request => seen.push(request)
+    });
+
+    await client.pleaseNotify({
+        protocol: 'http-post',
+        callback: { domain: 'sub.example', port: 9000, path: '/notify' },
+        feedUrl: 'https://feed.example/rss'
+    });
+
+    assert.equal(seen.length, 1);
+    assert.equal(seen[0].method, 'POST');
+    assert.equal(seen[0].url, 'http://hub.example:5337/pleaseNotify');
+    assert.equal(
+        seen[0].headers['Content-Type'],
+        'application/x-www-form-urlencoded'
+    );
+    // Same string the fetch call actually sent, not a reconstruction.
+    assert.equal(seen[0].body, calls[0].init.body);
+});
+
+test('pleaseNotify over xml-rpc reports the XML body via onRequest', async() => {
+    const { fn, calls } = fakeFetch();
+    const seen = [];
+    const client = createRssCloudClient({
+        serverUrl: 'http://hub.example:5337',
+        fetch: fn,
+        onRequest: request => seen.push(request)
+    });
+
+    await client.pleaseNotify({
+        protocol: 'xml-rpc',
+        callback: { domain: 'sub.example', port: 9000, path: '/RPC2' },
+        feedUrl: 'https://feed.example/rss'
+    });
+
+    assert.equal(seen[0].headers['Content-Type'], 'text/xml');
+    assert.equal(seen[0].body, calls[0].init.body);
+});
+
 test('strips a trailing slash from the server URL', async() => {
     const { fn, calls } = fakeFetch();
     const client = createRssCloudClient({
