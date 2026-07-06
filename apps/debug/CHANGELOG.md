@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.3](https://github.com/rsscloud/rsscloud/compare/debug-v1.0.2...debug-v1.0.3) (2026-07-06)
+
+
+### Bug Fixes
+
+* **debug:** advertise a correct externally-reachable PUBLIC_URL, log real outgoing requests ([2f00c93](https://github.com/rsscloud/rsscloud/commit/2f00c93fb7f1a2ab2de559f898aec0c3be2ff60d))
+* **debug:** validate PUBLIC_URL at startup instead of at request time ([bfe1f18](https://github.com/rsscloud/rsscloud/commit/bfe1f1895998128379ff633a104fe8fd99fb392d))
+
 ## [1.0.2](https://github.com/rsscloud/rsscloud/compare/debug-v1.0.1...debug-v1.0.2) (2026-07-06)
 
 
