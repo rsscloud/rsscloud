@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.0.2](https://github.com/rsscloud/rsscloud/compare/debug-v1.0.1...debug-v1.0.2) (2026-07-06)
+
+
+### Bug Fixes
+
+* **debug:** send hub.verify on WebSub subscribe/unsubscribe ([ec27963](https://github.com/rsscloud/rsscloud/commit/ec27963736689de7aa4728bcdea33af5af8fbd43))
+* **debug:** shrink the settings page's Disabled checkbox labels to content ([cecdc2e](https://github.com/rsscloud/rsscloud/commit/cecdc2e4a9c1bfba35965f4ffa726fe5a5f7fedf))
+* **debug:** style the settings page's secret input like other fields ([c674588](https://github.com/rsscloud/rsscloud/commit/c674588d773b4b5e46a615c9113293e5bc1d71f8))
+
 ## [1.0.1](https://github.com/rsscloud/rsscloud-server/compare/debug-v1.0.0...debug-v1.0.1) (2026-07-05)
 
 
