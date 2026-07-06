@@ -40,6 +40,7 @@ test('subscribe posts the hub.* subscribe form to /websub', async() => {
         'http://sub.example:9000/websub-callback'
     );
     assert.equal(body.get('hub.topic'), 'https://feed.example/rss');
+    assert.equal(body.get('hub.verify'), 'async');
     assert.deepEqual(res, { status: 202, body: '' });
 });
 
@@ -115,6 +116,7 @@ test('unsubscribe posts hub.mode=unsubscribe with callback and topic', async() =
         'http://sub.example:9000/websub-callback'
     );
     assert.equal(body.get('hub.topic'), 'https://feed.example/rss');
+    assert.equal(body.get('hub.verify'), 'async');
 });
 
 test('targets a configurable hub path', async() => {

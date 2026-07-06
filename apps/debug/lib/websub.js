@@ -19,11 +19,16 @@ function createWebSubClient(options) {
     }
 
     // The callback+topic form both subscribe and unsubscribe open with.
+    // `hub.verify` is a legacy PubSubHubbub field the current WebSub spec
+    // dropped (verification is always async now), but some hubs still
+    // reject a request that omits it — we always verify async, so it's
+    // safe to send unconditionally.
     function callbackForm(mode, opts) {
         return new URLSearchParams({
             'hub.mode': mode,
             'hub.callback': opts.callbackUrl,
-            'hub.topic': opts.topicUrl
+            'hub.topic': opts.topicUrl,
+            'hub.verify': 'async'
         });
     }
 
