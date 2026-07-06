@@ -1,3 +1,4 @@
+const { URL } = require('url');
 const packageJson = require('./package.json');
 
 // Simple config utility that reads from process.env with defaults
@@ -29,6 +30,24 @@ function getCidrListConfig(key) {
         .filter(Boolean);
 }
 
+// Validate a URL env var at startup, same fail-fast rule as
+// getNumericConfig: only the unset case falls back to defaultValue — a
+// present-but-malformed value throws here instead of surfacing later as an
+// uncaught `new URL()` throw mid-request (selfHostedPrefixes, the
+// rsscloud-subscribe route).
+function getUrlConfig(key, defaultValue) {
+    const value = process.env[key];
+    if (value === undefined) {
+        return defaultValue;
+    }
+    try {
+        new URL(value);
+    } catch {
+        throw new Error(`Invalid URL value for ${key}: "${value}"`);
+    }
+    return value;
+}
+
 const domain = getConfig('DOMAIN', 'localhost');
 const port = getNumericConfig('PORT', 9000);
 
@@ -43,7 +62,7 @@ module.exports = {
     // proxy in front of a public deployment typically terminates TLS on a
     // different port than the one this process actually binds. Defaults to
     // DOMAIN/PORT for a direct, non-proxied local dev setup.
-    publicUrl: getConfig('PUBLIC_URL', `http://${domain}:${port}`).replace(/\/$/, ''),
+    publicUrl: getUrlConfig('PUBLIC_URL', `http://${domain}:${port}`).replace(/\/$/, ''),
     hubServerUrl: getConfig('HUB_SERVER_URL', 'http://localhost:5337'),
     requestTimeout: getNumericConfig('REQUEST_TIMEOUT', 4000),
     debugFetchAllowCidrs: getCidrListConfig('DEBUG_FETCH_ALLOW_CIDRS'),
