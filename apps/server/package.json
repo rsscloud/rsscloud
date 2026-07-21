@@ -23,7 +23,7 @@
         "express": "^4.22.2",
         "express-handlebars": "^5.3.5",
         "markdown-it": "^14.2.0",
-        "morgan": "^1.10.1",
+        "morgan": "^1.11.0",
         "ws": "^8.21.0",
         "xmlbuilder": "^15.1.1"
     },
