@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.4](https://github.com/rsscloud/rsscloud/compare/debug-v1.0.3...debug-v1.0.4) (2026-07-21)
+
+
+### Bug Fixes
+
+* **deps:** bump morgan to 1.11.0 and brace-expansion to 5.0.7 ([a8ec325](https://github.com/rsscloud/rsscloud/commit/a8ec32598003bd83eb5ad556070ed753c8e0e715))
+
 ## [1.0.3](https://github.com/rsscloud/rsscloud/compare/debug-v1.0.2...debug-v1.0.3) (2026-07-06)
 
 

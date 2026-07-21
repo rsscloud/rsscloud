@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.0.1](https://github.com/rsscloud/rsscloud/compare/server-v4.0.0...server-v4.0.1) (2026-07-21)
+
+
+### Bug Fixes
+
+* **deps:** bump morgan to 1.11.0 and brace-expansion to 5.0.7 ([a8ec325](https://github.com/rsscloud/rsscloud/commit/a8ec32598003bd83eb5ad556070ed753c8e0e715))
+
 ## [4.0.0](https://github.com/rsscloud/rsscloud-server/compare/server-v3.0.0...server-v4.0.0) (2026-07-05)
 
 
