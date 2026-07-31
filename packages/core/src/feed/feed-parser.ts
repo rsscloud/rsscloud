@@ -130,6 +130,20 @@ function fromAtom(feed: Record<string, unknown>): FeedMetadata {
     });
 }
 
+// An OPML subscription list is a resource a publisher pings when the list
+// itself changes. Only <head><title> is meaningful here — the rest of the head
+// is authorship/window state, and the outlines are the list's contents, not
+// metadata about the list.
+function fromOpml(opml: Record<string, unknown>): FeedMetadata {
+    const head = asRecord(opml['head']);
+    return compact('opml', {
+        title: head === null ? '' : textContent(head['title']),
+        description: '',
+        htmlUrl: '',
+        language: ''
+    });
+}
+
 /**
  * The built-in {@link FeedParser}, an xml2js port of the server's parser.
  * Recognises RSS 2.0, RSS 1.0 (RDF), and Atom; resolves to null for anything
@@ -176,6 +190,11 @@ export function createDefaultFeedParser(
                 const feed = asRecord(parsed['feed']);
                 if (feed !== null) {
                     return fromAtom(feed);
+                }
+
+                const opml = asRecord(parsed['opml']);
+                if (opml !== null) {
+                    return fromOpml(opml);
                 }
 
                 return null;

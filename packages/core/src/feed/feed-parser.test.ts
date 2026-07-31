@@ -166,6 +166,44 @@ describe('createDefaultFeedParser — Atom', () => {
     });
 });
 
+describe('createDefaultFeedParser — OPML subscription lists', () => {
+    // Abridged from https://iheartrss.com/subscriptions.opml — a real
+    // subscription list, the kind of resource a publisher pings when the list
+    // itself changes rather than any one feed on it.
+    it('reads the head title off an OPML subscription list', async () => {
+        const meta = await parser.parse(
+            `<?xml version="1.0" encoding="UTF-8"?>
+            <opml version="2.0">
+              <head>
+                <title>I ♥ RSS</title>
+                <ownerName>iheartrss.com</ownerName>
+              </head>
+              <body>
+                <outline type="rss" text="A Node on the Web" xmlUrl="https://rmendes.net/feed.xml"/>
+              </body>
+            </opml>`
+        );
+
+        expect(meta).toEqual({ type: 'opml', title: 'I ♥ RSS' });
+    });
+
+    it('still identifies an OPML list that omits its <head>', async () => {
+        const meta = await parser.parse(
+            `<opml version="2.0"><body><outline text="x"/></body></opml>`
+        );
+
+        expect(meta).toEqual({ type: 'opml' });
+    });
+
+    it('still identifies an OPML list whose head has no title', async () => {
+        const meta = await parser.parse(
+            `<opml version="2.0"><head><ownerName>nobody</ownerName></head><body/></opml>`
+        );
+
+        expect(meta).toEqual({ type: 'opml' });
+    });
+});
+
 describe('createDefaultFeedParser — rejection cases', () => {
     it('returns null for an empty body', async () => {
         expect(await parser.parse('')).toBeNull();

@@ -1,7 +1,11 @@
 /** Metadata extracted from a feed body during change detection. */
 export interface FeedMetadata {
-    /** Feed flavour, e.g. `'rss'` or `'atom'`. */
-    type?: 'rss' | 'atom' | (string & {});
+    /**
+     * Resource flavour. `'rss'`/`'atom'` are feeds; `'opml'` is a subscription
+     * list, which an OPML export must render as an inclusion rather than as a
+     * feed outline (see the OPML 2.0 spec's "Inclusion" section).
+     */
+    type?: 'rss' | 'atom' | 'opml' | (string & {});
     title?: string;
     description?: string;
     /** Human-facing site URL (RSS `link` / Atom alternate link). */
