@@ -27,7 +27,7 @@ at once.
 
 ## How to install
 
-This project uses [pnpm](https://pnpm.io/) via corepack. Node.js 22+ is required.
+This project uses [pnpm](https://pnpm.io/) via corepack. Node.js 24+ is required.
 
 ```bash
 git clone https://github.com/rsscloud/rsscloud-server.git

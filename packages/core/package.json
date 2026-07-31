@@ -40,7 +40,7 @@
         "access": "public"
     },
     "engines": {
-        "node": ">=22"
+        "node": ">=24"
     },
     "sideEffects": false,
     "dependencies": {
@@ -64,7 +64,7 @@
     },
     "devDependencies": {
         "@eslint/js": "^9.18.0",
-        "@types/node": "^22.10.0",
+        "@types/node": "^24.13.3",
         "@types/xml2js": "^0.4.14",
         "@vitest/coverage-v8": "^3.2.6",
         "eslint": "^9.18.0",

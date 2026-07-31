@@ -1,4 +1,4 @@
-FROM node:22 AS base
+FROM node:24 AS base
 
 # Dockerize is needed to sync containers startup
 ENV DOCKERIZE_VERSION v0.6.1

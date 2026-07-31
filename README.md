@@ -16,7 +16,7 @@ A monorepo for the [rssCloud](http://rsscloud.org/) notification protocol.
 
 ## Development
 
-This repo is a [pnpm](https://pnpm.io/) workspace using [Turborepo](https://turborepo.com/) for task orchestration. Node.js 22+ is required.
+This repo is a [pnpm](https://pnpm.io/) workspace using [Turborepo](https://turborepo.com/) for task orchestration. Node.js 24+ is required.
 
 ```bash
 git clone https://github.com/rsscloud/rsscloud-server.git
