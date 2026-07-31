@@ -1,5 +1,22 @@
 # Changelog
 
+## [4.0.1](https://github.com/rsscloud/rsscloud/compare/server-v4.0.0...server-v4.0.1) (2026-07-31)
+
+
+### Bug Fixes
+
+* **deps:** bump morgan to 1.11.0 and brace-expansion to 5.0.7 ([a8ec325](https://github.com/rsscloud/rsscloud/commit/a8ec32598003bd83eb5ad556070ed753c8e0e715))
+* **server:** render OPML subscription lists as inclusions in /feeds.opml ([bdd6865](https://github.com/rsscloud/rsscloud/commit/bdd6865a75b9195ecfb15d6f0d7fdb8556b49943))
+* **server:** upgrade express-handlebars 5.3.5 -&gt; 9.0.1 to drop inflight ([8102d87](https://github.com/rsscloud/rsscloud/commit/8102d87600057485050bad548ab1466e2e4d7133))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @rsscloud/core bumped to 1.0.1
+    * @rsscloud/express bumped to 1.0.1
+
 ## [4.0.0](https://github.com/rsscloud/rsscloud-server/compare/server-v3.0.0...server-v4.0.0) (2026-07-05)
 
 
