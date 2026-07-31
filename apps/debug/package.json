@@ -18,7 +18,7 @@
     "dependencies": {
         "@rsscloud/core": "workspace:*",
         "@rsscloud/xml-rpc": "workspace:*",
-        "body-parser": "^2.2.2",
+        "body-parser": "^2.3.0",
         "dotenv": "^17.4.2",
         "express": "^4.22.2",
         "morgan": "^1.11.0",
