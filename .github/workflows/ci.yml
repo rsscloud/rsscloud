@@ -20,7 +20,7 @@ jobs:
         strategy:
             fail-fast: false
             matrix:
-                node: ['22', '24', '26']
+                node: ['24', '26']
         steps:
             - uses: actions/checkout@v5
 
@@ -48,7 +48,7 @@ jobs:
               run: pnpm test:unit
 
             - name: Upload core coverage
-              if: matrix.node == '22'
+              if: matrix.node == '24'
               uses: actions/upload-artifact@v4
               with:
                   name: core-coverage
@@ -56,7 +56,7 @@ jobs:
                   if-no-files-found: ignore
 
     integration:
-        name: Integration (Docker, Node 22)
+        name: Integration (Docker, Node 24)
         runs-on: ubuntu-latest
         needs: lint-and-unit
         steps:

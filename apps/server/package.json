@@ -10,7 +10,7 @@
         "lint": "eslint --fix controllers/ services/ *.js"
     },
     "engines": {
-        "node": ">=22.22.2"
+        "node": ">=24"
     },
     "author": "Andrew Shell <andrew@andrewshell.org>",
     "license": "MIT",

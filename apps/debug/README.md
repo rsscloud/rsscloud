@@ -55,7 +55,7 @@ Copy `.env.example` to `.env` and adjust — the defaults target a hub at
 `http://localhost:5337` (this repo's own server, run locally) with loopback exempted from
 the outbound SSRF guard for local dev. See `.env.example` for the full list of env vars
 (`DOMAIN`, `PORT`, `HUB_SERVER_URL`, `DEBUG_FETCH_ALLOW_CIDRS`, `REQUEST_TIMEOUT`,
-`SESSION_CALLBACK_IDLE_MS`, `SESSION_GC_IDLE_MS`, `SESSION_GC_INTERVAL_MS`). Requires Node 22+.
+`SESSION_CALLBACK_IDLE_MS`, `SESSION_GC_IDLE_MS`, `SESSION_GC_INTERVAL_MS`). Requires Node 24+.
 
 Every outbound call this harness makes (feed discovery, pleaseNotify/ping, WebSub `hub.*`) is
 routed through the same SSRF-guarded fetch `@rsscloud/core` gives the hub server — refusing

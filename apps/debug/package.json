@@ -11,7 +11,7 @@
         "lint": "eslint --fix *.js lib/"
     },
     "engines": {
-        "node": ">=22"
+        "node": ">=24"
     },
     "author": "Andrew Shell <andrew@andrewshell.org>",
     "license": "MIT",

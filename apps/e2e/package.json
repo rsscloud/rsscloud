@@ -4,7 +4,7 @@
     "private": true,
     "description": "End-to-end tests for rssCloud server",
     "engines": {
-        "node": ">=22"
+        "node": ">=24"
     },
     "scripts": {
         "e2e-test": "mocha",

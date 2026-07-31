@@ -1,4 +1,4 @@
-FROM node:22 AS base
+FROM node:24 AS base
 
 RUN corepack enable
 
@@ -35,7 +35,7 @@ WORKDIR /app/apps/debug
 # in memory for the process lifetime.
 EXPOSE 9000
 
-# node:22 ships a pre-created, unprivileged `node` user (uid 1000) for
+# node:24 ships a pre-created, unprivileged `node` user (uid 1000) for
 # exactly this purpose — the app never writes to disk, so it only ever needs
 # read access to what was just copied in.
 USER node
