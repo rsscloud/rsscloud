@@ -107,6 +107,28 @@ test('generateOpml sorts case-insensitively and falls back to the feed URL', asy
     });
 });
 
+// OPML 2.0, "Inclusion": an outline pointing at another OPML file is
+// type="include" with a `url` attribute — not a type="rss" outline with an
+// `xmlUrl`, which would tell an aggregator to subscribe to the list as a feed.
+test('generateOpml renders an OPML subscription list as an inclusion', async() => {
+    const { core, generateOpml } = setup();
+    await core.seedResource('https://iheartrss.com/subscriptions.opml', makeResource('https://iheartrss.com/subscriptions.opml', {
+        type: 'opml',
+        title: 'I ♥ RSS'
+    }));
+
+    const result = await parseOpml(await generateOpml());
+    const outlines = result.opml.body[0].outline;
+
+    assert.equal(outlines.length, 1);
+    assert.deepEqual(outlines[0].$, {
+        type: 'include',
+        text: 'I ♥ RSS',
+        title: 'I ♥ RSS',
+        url: 'https://iheartrss.com/subscriptions.opml'
+    });
+});
+
 test('generateOpml lists a subscribed feed that was never pinged', async() => {
     const { core, generateOpml } = setup();
     await core.seedSubscriptions('https://new.example.com/feed.xml', [makeSubscription()]);

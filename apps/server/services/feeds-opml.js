@@ -18,11 +18,13 @@ function createFeedsOpml({ core }) {
         for (const { feedUrl, resource } of entries) {
             const feed = (resource && resource.feed) || {};
             const text = feed.title || feedUrl;
-            const outline = {
-                type: feed.type || 'rss',
-                text,
-                xmlUrl: feedUrl
-            };
+            // A tracked resource that is itself an OPML subscription list is an
+            // *inclusion*, not a feed: OPML 2.0 spells that type="include" with
+            // a `url`. Emitting it as type="rss"/xmlUrl would tell an importing
+            // aggregator to subscribe to the list as though it were a feed.
+            const outline = feed.type === 'opml'
+                ? { type: 'include', text, url: feedUrl }
+                : { type: feed.type || 'rss', text, xmlUrl: feedUrl };
             if (feed.title) outline.title = feed.title;
             if (feed.description) outline.description = feed.description;
             if (feed.htmlUrl) outline.htmlUrl = feed.htmlUrl;
