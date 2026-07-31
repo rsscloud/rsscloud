@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.0.1](https://github.com/rsscloud/rsscloud/compare/express-v1.0.0...express-v1.0.1) (2026-07-31)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @rsscloud/core bumped to 1.0.1
+
 ## 1.0.0 (2026-07-05)
 
 

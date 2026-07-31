@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/rsscloud/rsscloud/compare/core-v1.0.0...core-v1.0.1) (2026-07-31)
+
+
+### Bug Fixes
+
+* **core:** recognize OPML subscription lists in the feed parser ([3328a49](https://github.com/rsscloud/rsscloud/commit/3328a493ddad50f7880e6efe26fef92865134238))
+
 ## 1.0.0 (2026-07-05)
 
 
