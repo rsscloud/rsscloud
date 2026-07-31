@@ -10,7 +10,7 @@
         "lint": "eslint --fix controllers/ services/ *.js"
     },
     "engines": {
-        "node": ">=22"
+        "node": ">=22.22.2"
     },
     "author": "Andrew Shell <andrew@andrewshell.org>",
     "license": "MIT",
@@ -21,7 +21,7 @@
         "dayjs": "^1.11.20",
         "dotenv": "^17.4.2",
         "express": "^4.22.2",
-        "express-handlebars": "^5.3.5",
+        "express-handlebars": "^9.0.1",
         "markdown-it": "^14.2.0",
         "morgan": "^1.11.0",
         "ws": "^8.21.0",
