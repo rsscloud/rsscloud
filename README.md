@@ -14,6 +14,27 @@ A monorepo for the [rssCloud](http://rsscloud.org/) notification protocol.
 - **[`packages/express`](packages/express/README.md)** — `@rsscloud/express`: Express middleware for the rssCloud front doors — `pleaseNotify`, `ping`, and the `RPC2` endpoint, built on `@rsscloud/core`.
 - **[`packages/xml-rpc`](packages/xml-rpc/README.md)** — `@rsscloud/xml-rpc`: a generic XML-RPC codec — parse and build `methodCall`/`methodResponse` documents.
 
+## Docker images
+
+The server and the debug harness are published to the GitHub Container Registry
+as [`ghcr.io/rsscloud/server`](https://github.com/orgs/rsscloud/packages) and
+[`ghcr.io/rsscloud/debug`](https://github.com/orgs/rsscloud/packages), built for
+`linux/amd64` and `linux/arm64`. Running a hub needs neither a checkout nor a
+Node toolchain:
+
+```bash
+docker run -d -p 5337:5337 \
+  -e DOMAIN=cloud.example.com \
+  -v rsscloud-data:/app/apps/server/data \
+  ghcr.io/rsscloud/server:latest
+```
+
+See [`apps/server`](apps/server/README.md#run-with-docker) for the settings worth
+overriding, and [`examples/dockge/compose.yaml`](examples/dockge/compose.yaml)
+for a full Compose stack. Images are published by hand with
+[`scripts/docker-build-push.sh`](scripts/README.md) — `:latest` follows the most
+recent push, so pin a version tag for real deployments.
+
 ## Development
 
 This repo is a [pnpm](https://pnpm.io/) workspace using [Turborepo](https://turborepo.com/) for task orchestration. Node.js 24+ is required.

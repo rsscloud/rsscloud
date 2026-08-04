@@ -25,7 +25,47 @@ at once.
 - **[How it fits together](docs/cross-protocol.md)** — why one ping notifies every
   subscriber regardless of the protocol they used.
 
+## Run with Docker
+
+Published images live in the GitHub Container Registry at
+[`ghcr.io/rsscloud/server`](https://github.com/orgs/rsscloud/packages) and are
+built for `linux/amd64` and `linux/arm64`. If you just want to run a hub, this is
+the shortest path — no checkout, no toolchain:
+
+```bash
+docker run -d --name rsscloud \
+  -p 5337:5337 \
+  -e DOMAIN=cloud.example.com \
+  -e HUB_URL=https://cloud.example.com/websub \
+  -v rsscloud-data:/app/apps/server/data \
+  ghcr.io/rsscloud/server:latest
+```
+
+- `DOMAIN` is the externally-reachable hostname for this hub (no scheme, no
+  port); it defaults to `localhost`, which is fine for a local trial but wrong
+  for anything a subscriber has to reach.
+- `HUB_URL` is the WebSub hub URL advertised to subscribers. It defaults to
+  `http://$DOMAIN:$PORT/websub`, so set it explicitly when you terminate HTTPS at
+  a reverse proxy.
+- The volume matters: subscriptions and stats live in `/app/apps/server/data`
+  inside the container and are lost on redeploy without it. See
+  [Data storage](#data-storage).
+
+`:latest` tracks the most recent published build; pin a release tag
+(e.g. `ghcr.io/rsscloud/server:4.0.1`) for a deployment you don't want moving
+underneath you.
+
+For a fuller stack — the hub plus the [debug harness](../debug/README.md)
+(`ghcr.io/rsscloud/debug`), on a dedicated network with healthchecks and a
+persistent volume — see the Compose file in
+[`examples/dockge/compose.yaml`](../../examples/dockge/compose.yaml). Every
+setting is documented in [`config.js`](config.js).
+
 ## How to install
+
+Install from source if you intend to develop against the server or run an
+unreleased revision; to just run a hub, prefer the [image](#run-with-docker)
+above.
 
 This project uses [pnpm](https://pnpm.io/) via corepack. Node.js 24+ is required.
 
