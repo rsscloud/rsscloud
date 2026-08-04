@@ -6,12 +6,12 @@
     "author": "Andrew Shell <andrew@andrewshell.org>",
     "repository": {
         "type": "git",
-        "url": "https://github.com/rsscloud/rsscloud-server.git",
+        "url": "https://github.com/rsscloud/rsscloud.git",
         "directory": "packages/xml-rpc"
     },
-    "homepage": "https://github.com/rsscloud/rsscloud-server/tree/main/packages/xml-rpc#readme",
+    "homepage": "https://github.com/rsscloud/rsscloud/tree/main/packages/xml-rpc#readme",
     "bugs": {
-        "url": "https://github.com/rsscloud/rsscloud-server/issues"
+        "url": "https://github.com/rsscloud/rsscloud/issues"
     },
     "type": "module",
     "main": "./dist/index.cjs",

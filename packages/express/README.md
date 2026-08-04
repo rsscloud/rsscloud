@@ -1,7 +1,7 @@
 # @rsscloud/express
 
 [Express](https://expressjs.com/) middleware for the
-[rssCloud](https://github.com/rsscloud/rsscloud-server) notification protocol.
+[rssCloud](https://github.com/rsscloud/rsscloud) notification protocol.
 
 Each endpoint is a separate, drop-in handler built from a `@rsscloud/core`
 engine, so an app mounts only the front doors it wants to expose:

@@ -1,6 +1,6 @@
 # @rsscloud/debug
 
-An interactive **test harness** for the [rssCloud](https://github.com/rsscloud/rsscloud-server)
+An interactive **test harness** for the [rssCloud](https://github.com/rsscloud/rsscloud)
 notification protocol and [WebSub](https://www.w3.org/TR/websub/) — the subscriber +
 publisher end, the mirror of `@rsscloud/core` (the hub end). Unlike most of this monorepo
 it's designed to be deployable as a **public utility**: it can test a hub running locally,
