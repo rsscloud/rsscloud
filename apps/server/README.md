@@ -1,7 +1,7 @@
 # rssCloud Server
 
 [![MIT License](https://img.shields.io/badge/license-MIT-brightgreen.svg)](LICENSE.md)
-[![CI](https://github.com/rsscloud/rsscloud-server/actions/workflows/ci.yml/badge.svg)](https://github.com/rsscloud/rsscloud-server/actions/workflows/ci.yml)
+[![CI](https://github.com/rsscloud/rsscloud/actions/workflows/ci.yml/badge.svg)](https://github.com/rsscloud/rsscloud/actions/workflows/ci.yml)
 [![Andrew Shell's Weblog](https://img.shields.io/badge/weblog-rssCloud-brightgreen)](https://andrewshell.org/search/?keywords=rsscloud)
 
 rssCloud Server implementation in Node.js.
@@ -30,12 +30,19 @@ at once.
 This project uses [pnpm](https://pnpm.io/) via corepack. Node.js 24+ is required.
 
 ```bash
-git clone https://github.com/rsscloud/rsscloud-server.git
-cd rsscloud-server
+git clone https://github.com/rsscloud/rsscloud.git
+cd rsscloud
 corepack enable
 pnpm install
+pnpm build
 pnpm start
 ```
+
+`pnpm build` is not optional. The server depends on the workspace packages
+`@rsscloud/core` and `@rsscloud/express`, which are TypeScript and resolve to a
+compiled `dist/`. `pnpm install` only links them into place — it does not compile
+them — so starting without a build fails with a module-not-found error. Re-run
+`pnpm build` after any pull that touches `packages/`.
 
 ## Data storage
 
@@ -74,8 +81,8 @@ present), then hands off to the real server in `apps/server`. Your existing
 subscriptions and stats keep working untouched — the legacy data file is only ever
 read, never rewritten (a new `.v2.json` sibling holds every write going forward).
 
-Pull the new code, run `pnpm install` (see [How to install](#how-to-install)), and
-start it exactly as before:
+Pull the new code, run `pnpm install` and `pnpm build` (see
+[How to install](#how-to-install)), and start it exactly as before:
 
 ```bash
 node app.js
@@ -87,16 +94,30 @@ with `pnpm start` instead of `node app.js` from the repo root.
 
 ## How to test
 
-The API is tested using docker containers. I've only tested on MacOS so if you have experience testing on other platforms I'd love having these notes updated for those platforms.
+The API is tested using docker containers. Everything the suite needs is built
+inside those containers, so you don't have to `pnpm build` or start the server
+first — but you do need Docker installed _and running_.
 
-### MacOS
+1. **Install Docker.**
+    - macOS — [Docker Desktop for Mac](https://docs.docker.com/desktop/setup/install/mac-install/)
+    - Windows — [Docker Desktop for Windows](https://docs.docker.com/desktop/setup/install/windows-install/)
+    - Linux — [Docker Engine](https://docs.docker.com/engine/install/) with the Compose plugin
 
-First install [Docker Desktop for Mac](https://hub.docker.com/editions/community/docker-ce-desktop-mac)
+2. **Start Docker and wait for it to report that it's running.** Docker Desktop
+   does not launch itself after installation or after a reboot, and `pnpm test`
+   fails with a "cannot connect to the Docker daemon" error if the engine isn't
+   up yet.
 
-```bash
-pnpm test
-```
+3. **Run the suite** from the repo root:
+
+    ```bash
+    pnpm test
+    ```
 
 This should build the appropriate containers and show the test output.
 
 Our tests create mock API endpoints so we can verify rssCloud server works correctly when reading resources and notifying subscribers.
+
+Most development happens on macOS; if you hit a platform-specific snag on Windows
+or Linux, please [open an issue](https://github.com/rsscloud/rsscloud/issues) so
+these notes can be improved.

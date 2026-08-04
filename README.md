@@ -1,7 +1,7 @@
 # rssCloud
 
 [![MIT License](https://img.shields.io/badge/license-MIT-brightgreen.svg)](LICENSE.md)
-[![CI](https://github.com/rsscloud/rsscloud-server/actions/workflows/ci.yml/badge.svg)](https://github.com/rsscloud/rsscloud-server/actions/workflows/ci.yml)
+[![CI](https://github.com/rsscloud/rsscloud/actions/workflows/ci.yml/badge.svg)](https://github.com/rsscloud/rsscloud/actions/workflows/ci.yml)
 [![Andrew Shell's Weblog](https://img.shields.io/badge/weblog-rssCloud-brightgreen)](https://andrewshell.org/search/?keywords=rsscloud)
 
 A monorepo for the [rssCloud](http://rsscloud.org/) notification protocol.
@@ -19,16 +19,25 @@ A monorepo for the [rssCloud](http://rsscloud.org/) notification protocol.
 This repo is a [pnpm](https://pnpm.io/) workspace using [Turborepo](https://turborepo.com/) for task orchestration. Node.js 24+ is required.
 
 ```bash
-git clone https://github.com/rsscloud/rsscloud-server.git
-cd rsscloud-server
+git clone https://github.com/rsscloud/rsscloud.git
+cd rsscloud
 corepack enable
 pnpm install
+pnpm build          # build all packages — required before pnpm start
 pnpm start          # start the server in dev mode
-pnpm build          # build all packages
+```
+
+`pnpm build` has to run before `pnpm start`. `apps/server` consumes the workspace
+packages through their compiled `dist/` output, and `pnpm install` links them
+without compiling them. Build again after any change to `packages/`.
+
+Other tasks:
+
+```bash
 pnpm lint           # lint all packages
 pnpm typecheck      # typecheck all packages
 pnpm test:unit      # run unit tests across all packages
-pnpm test           # run docker-based end-to-end tests (server)
+pnpm test           # run docker-based end-to-end tests (requires Docker to be running)
 ```
 
 See each package's README for package-specific usage and API documentation.
