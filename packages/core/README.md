@@ -1,6 +1,6 @@
 # @rsscloud/core
 
-Core primitives for [rssCloud](https://github.com/rsscloud/rsscloud-server) — subscriptions, notifications, and feed-update processing.
+Core primitives for [rssCloud](https://github.com/rsscloud/rsscloud) — subscriptions, notifications, and feed-update processing.
 
 > **Status:** The protocol-neutral engine and the rssCloud **REST** transport
 > (`http-post` / `https-post`) are implemented. XML-RPC and WebSub delivery

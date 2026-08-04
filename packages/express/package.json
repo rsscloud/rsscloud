@@ -6,12 +6,12 @@
     "author": "Andrew Shell <andrew@andrewshell.org>",
     "repository": {
         "type": "git",
-        "url": "https://github.com/rsscloud/rsscloud-server.git",
+        "url": "https://github.com/rsscloud/rsscloud.git",
         "directory": "packages/express"
     },
-    "homepage": "https://github.com/rsscloud/rsscloud-server/tree/main/packages/express#readme",
+    "homepage": "https://github.com/rsscloud/rsscloud/tree/main/packages/express#readme",
     "bugs": {
-        "url": "https://github.com/rsscloud/rsscloud-server/issues"
+        "url": "https://github.com/rsscloud/rsscloud/issues"
     },
     "type": "module",
     "main": "./dist/index.cjs",

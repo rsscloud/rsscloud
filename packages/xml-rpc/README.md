@@ -2,7 +2,7 @@
 
 A small, generic [XML-RPC](http://xmlrpc.com/) codec — parse and build
 `methodCall` / `methodResponse` documents — shared by the
-[rssCloud](https://github.com/rsscloud/rsscloud-server) packages.
+[rssCloud](https://github.com/rsscloud/rsscloud) packages.
 
 `@rsscloud/core` (the hub) and the `apps/debug` harness (the subscriber/publisher
 end) both speak XML-RPC over the `/RPC2` front door; this package is the one home
