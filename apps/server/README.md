@@ -61,6 +61,31 @@ persistent volume — see the Compose file in
 [`examples/dockge/compose.yaml`](../../examples/dockge/compose.yaml). Every
 setting is documented in [`config.js`](config.js).
 
+### Feeds on the same machine
+
+The hub refuses to fetch any URL whose host resolves to a non-public address
+(see [SSRF egress protection](docs/websub.md#ssrf-egress-protection)). If your
+feeds are served from the same machine as the hub, their hostname can resolve to
+a private address inside the container, such as a Docker network address, the
+host's LAN address, or a Tailscale address in `100.64.0.0/10`. The hub then
+refuses to read a feed that the rest of the internet can reach.
+
+The safer fix is to make that hostname resolve to the machine's public address
+inside the container. Use `extra_hosts` in Compose, or `--add-host` with
+`docker run`. This works as long as the container can reach that address.
+
+```yaml
+services:
+    rsscloud:
+        extra_hosts:
+            - 'feeds.example.com:203.0.113.10'
+```
+
+`WEBSUB_FETCH_ALLOW_CIDRS` also works, but it exempts the whole range. Anyone can
+then subscribe to a URL in that range, ping it, and have the hub fetch the page
+and deliver it to their WebSub callback. Use it only for feeds that really live
+on a private network.
+
 ## How to install
 
 Install from source if you intend to develop against the server or run an
