@@ -73,6 +73,8 @@ refuses to read a feed that the rest of the internet can reach.
 The safer fix is to make that hostname resolve to the machine's public address
 inside the container. Use `extra_hosts` in Compose, or `--add-host` with
 `docker run`. This works as long as the container can reach that address.
+Replace the example hostname and IP below with your feed's hostname and your
+machine's public IP.
 
 ```yaml
 services:
