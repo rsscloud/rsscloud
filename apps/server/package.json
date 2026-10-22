@@ -1,6 +1,6 @@
 {
     "name": "@rsscloud/server",
-    "version": "4.0.1",
+    "version": "4.0.2",
     "description": "An rssCloud Server",
     "main": "app.js",
     "scripts": {

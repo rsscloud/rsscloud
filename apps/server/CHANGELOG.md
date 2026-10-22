@@ -1,5 +1,20 @@
 # Changelog
 
+## [4.0.2](https://github.com/rsscloud/rsscloud/compare/server-v4.0.1...server-v4.0.2) (2026-10-22)
+
+
+### Bug Fixes
+
+* **deps:** update dependencies with security advisories ([6d72213](https://github.com/rsscloud/rsscloud/commit/6d72213d5a3211d485a97add4e3c1f70c2c8c036))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @rsscloud/core bumped to 1.0.2
+    * @rsscloud/express bumped to 1.0.2
+
 ## [4.0.1](https://github.com/rsscloud/rsscloud/compare/server-v4.0.0...server-v4.0.1) (2026-07-31)
 
 
