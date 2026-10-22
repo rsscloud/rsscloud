@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.0.5](https://github.com/rsscloud/rsscloud/compare/debug-v1.0.4...debug-v1.0.5) (2026-10-22)
+
+
+### Bug Fixes
+
+* **deps:** update dependencies with security advisories ([6d72213](https://github.com/rsscloud/rsscloud/commit/6d72213d5a3211d485a97add4e3c1f70c2c8c036))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @rsscloud/core bumped to 1.0.2
+    * @rsscloud/xml-rpc bumped to 1.0.1
+
 ## [1.0.4](https://github.com/rsscloud/rsscloud/compare/debug-v1.0.3...debug-v1.0.4) (2026-07-31)
 
 

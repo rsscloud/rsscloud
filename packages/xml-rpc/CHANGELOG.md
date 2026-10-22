@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/rsscloud/rsscloud/compare/xml-rpc-v1.0.0...xml-rpc-v1.0.1) (2026-10-22)
+
+
+### Bug Fixes
+
+* **deps:** update dependencies with security advisories ([6d72213](https://github.com/rsscloud/rsscloud/commit/6d72213d5a3211d485a97add4e3c1f70c2c8c036))
+
 ## 1.0.0 (2026-07-05)
 
 
