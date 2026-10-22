@@ -121,6 +121,29 @@ describe('createRssCloudCore ping', () => {
         expect(fetchMock).not.toHaveBeenCalled();
     });
 
+    it('accepts a ping once exactly the minimum interval has elapsed', async () => {
+        const store = createInMemoryStore();
+        const fixedNow = new Date('2026-01-01T00:01:00Z');
+        await store.putResource(
+            FEED,
+            resource({ whenLastCheck: new Date('2026-01-01T00:00:00Z') })
+        );
+        const fetchMock = fetchReturning(RSS);
+
+        const core = createRssCloudCore({
+            store,
+            plugins: [],
+            config: resolveConfig({ minSecsBetweenPings: 60 }),
+            fetch: fetchMock,
+            now: () => fixedNow
+        });
+
+        const result = await core.ping({ resourceUrl: FEED });
+
+        expect(result.success).toBe(true);
+        expect(fetchMock).toHaveBeenCalledOnce();
+    });
+
     it('rejects when the resource responds non-2xx', async () => {
         const core = createRssCloudCore({
             store: createInMemoryStore(),
